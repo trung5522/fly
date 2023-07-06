@@ -52,15 +52,16 @@ int receiver_input_channel_6;
 
 int throttle;
 
+int cal_int;
 long gyro_x_cal;
 long gyro_y_cal;
 long gyro_z_cal;
 
 int loop_timer;
 
-int gyro_x;
-int gyro_y;
-int gyro_z;
+int16_t gyro_x;
+int16_t gyro_y;
+int16_t gyro_z;
 
 
 long acc_x;
@@ -141,6 +142,7 @@ bool auto_level = true;
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 int mapValue(int value, int inMin, int inMax, int outMin, int outMax);
+void gyro_signalen(void);
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -155,14 +157,17 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 	if(GPIO_Pin == GPIO_PIN_11){
 		tick = __HAL_TIM_GET_COUNTER(&htim4);
 		__HAL_TIM_SET_COUNTER(&htim4,0);
-		if(tick < 2005){
+		if(tick < 2000){
 			if(pulse==2){
 				if(tick<1000) ch[pulse]=ch[pulse];
 				else
 					ch[pulse]= tick;
 			}
+			else if((pulse ==4) || (pulse ==5)){
+				ch[pulse]= tick;
+			}
 			else{
-				if(tick<1200) ch[pulse]=ch[pulse];
+				if(tick<1200 || tick >1700 ) ch[pulse]=ch[pulse];
 				else
 					ch[pulse]= mapValue(tick, 1200, 1700, 1000, 2000);
 				//ch[pulse]= tick;
@@ -183,6 +188,54 @@ if (value < inMin) return outMin;
 else if (value > inMax) return outMax;
 
 return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+void calibrate_gyro(void) {
+  cal_int = 0;                                                                        //Set the cal_int variable to zero.
+  if (cal_int != 2000) {
+    //Let's take multiple gyro data samples so we can determine the average gyro offset (calibration).
+    for (cal_int = 0; cal_int < 2000 ; cal_int ++) {                                  //Take 2000 readings for calibration.
+      if (cal_int % 25 == 0) HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);                    //Change the led status every 125 readings to indicate calibration.
+      gyro_signalen();                                                                //Read the gyro output.
+      gyro_x_cal += gyro_x;                                                     //Ad roll value to gyro_roll_cal.
+      gyro_y_cal += gyro_y;                                                   //Ad pitch value to gyro_pitch_cal.
+      gyro_z_cal += gyro_z;                                                       //Ad yaw value to gyro_yaw_cal.
+      HAL_Delay(4);                                                                       //Small delay to simulate a 250Hz loop during calibration.
+    }
+    //red_led(HIGH);                                                                     //Set output PB3 low.
+    //Now that we have 2000 measures, we need to devide by 2000 to get the average gyro offset.
+    gyro_x_cal /= 2000;                                                            //Divide the roll total by 2000.
+    gyro_y_cal /= 2000;                                                           //Divide the pitch total by 2000.
+    gyro_z_cal /= 2000;                                                             //Divide the yaw total by 2000.
+  }
+}
+void gyro_signalen(void) {
+//  HWire.beginTransmission(gyro_address);                       //Start communication with the gyro.
+//  HWire.write(0x3B);                                           //Start reading @ register 43h and auto increment with every read.
+//  HWire.endTransmission();                                     //End the transmission.
+//  HWire.requestFrom(gyro_address, 14);                         //Request 14 bytes from the MPU 6050.
+//  acc_y = HWire.read() << 8 | HWire.read();                    //Add the low and high byte to the acc_x variable.
+//  acc_x = HWire.read() << 8 | HWire.read();                    //Add the low and high byte to the acc_y variable.
+//  acc_z = HWire.read() << 8 | HWire.read();                    //Add the low and high byte to the acc_z variable.
+//  temperature = HWire.read() << 8 | HWire.read();              //Add the low and high byte to the temperature variable.
+//  gyro_roll = HWire.read() << 8 | HWire.read();                //Read high and low part of the angular data.
+//  gyro_pitch = HWire.read() << 8 | HWire.read();               //Read high and low part of the angular data.
+//  gyro_yaw = HWire.read() << 8 | HWire.read();                 //Read high and low part of the angular data.
+	update_accel_gyro(&mpu);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+   	 //HAL_Delay(100);
+//    gyro_x = mpu.g[0];
+//	gyro_y = mpu.g[1];                                            //Invert the direction of the axis.
+//    gyro_z = mpu.g[2];                                              //Invert the direction of the axis.
+
+//  if (level_calibration_on == 0) {
+//    acc_y -= acc_pitch_cal_value;                              //Subtact the manual accelerometer pitch calibration value.
+//    acc_x -= acc_roll_cal_value;                               //Subtact the manual accelerometer roll calibration value.
+//  }
+
+    gyro_x = mpu.g[0] - 2.57;                                  //Subtact the manual gyro roll calibration value.
+    gyro_y = mpu.g[1] + 2.1;                                //Subtact the manual gyro pitch calibration value.
+    gyro_z = mpu.g[2] - 0.035;                                    //Subtact the manual gyro yaw calibration value.
+
 }
 /* USER CODE END PV */
 
@@ -229,11 +282,11 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
   MX_TIM4_Init();
   MX_TIM3_Init();
   MX_I2C1_Init();
   MX_TIM2_Init();
+  MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim4);
   HAL_TIM_Base_Start(&htim2);
@@ -255,10 +308,17 @@ int main(void)
           }
           HAL_Delay(100);
 
-          if(updateMPU(&mpu)==1){
-         	 //HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
-          }
+          int i;
+          for(i=0;i<100;i++){
+               if(updateMPU(&mpu)==1){
+              	 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2,1);
+              	 HAL_Delay(100);
+               }
+           }
+
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
           HAL_Delay(2000);
+          calibrate_gyro();
           loop_timer = __HAL_TIM_GET_COUNTER(&htim2);
   /* USER CODE END 2 */
 
@@ -269,37 +329,72 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
- 	  receiver_input_channel_1 = ch[2]; //thr
+	//uint32_t dau = HAL_GetTick();
+ 	  	  receiver_input_channel_1 = ch[2]; //thr
 	 	  receiver_input_channel_2 = ch[0]; //roll
 	 	  receiver_input_channel_3 = ch[1];	//pitch
 	 	  receiver_input_channel_4 = ch[3]; //yaw
 	 	  receiver_input_channel_5 = ch[4];	 //sw left
 	 	  receiver_input_channel_6 = ch[5]; //sw right
-	 	 if(updateMPU(&mpu)==1){
-	 			  gyro_x = mpu.g[0]-2.53;
-	 			  gyro_y = mpu.g[1]-(-1.95);
-	 			  gyro_z = mpu.g[2]-(-0.06);
-	 			 // HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
-	 	 }
-	 	gyro_pitch_input 	= ( gyro_pitch_input * 0.7 ) + (float)( gyro_y  * 0.3);
+//	 	 if(updateMPU(&mpu)==1){
+//	 			  gyro_x = mpu.g[0]-2.53;
+//	 			  gyro_y = mpu.g[1]-(-1.95);
+//	 			  gyro_z = mpu.g[2]-(-0.06);
+//	 			 // HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+//	 	 }
+	 	gyro_signalen();
+//	 		 			  gyro_x = mpu.g[0]-2.53;
+//	 		 			  gyro_y = mpu.g[1]-(-1.95);
+//	 		 			  gyro_z = mpu.g[2]-(-0.15);
+	 	gyro_pitch_input 	= ( gyro_pitch_input * 0.7 ) + (float)( -gyro_y  * 0.3);
 	 	gyro_roll_input 	= ( gyro_roll_input * 0.7 ) + (float)( gyro_x  * 0.3);
-	 	gyro_yaw_input 	= ( gyro_yaw_input * 0.7 ) + (float)( gyro_z  * 0.3);
+	 	gyro_yaw_input 	= ( gyro_yaw_input * 0.7 ) + (float)( -gyro_z  * 0.3);
 
-	 	angle_pitch_acc = mpu.rpy[1]-3.0;		// -1
-	 	angle_roll_acc =mpu.rpy[0]+0.5 ;		// -2.5
-	 	angle_yaw_acc = mpu.rpy[2];
+	 	//Gyro angle calculations
+	 	  //0.0000611 = 1 / (250Hz / 65.5)
+	 	  angle_pitch += (float)gyro_y * 0.004;                                    //Calculate the traveled pitch angle and add this to the angle_pitch variable.
+	 	  angle_roll += (float)gyro_x * 0.004;                                      //Calculate the traveled roll angle and add this to the angle_roll variable.
+	 	  angle_yaw += (float)gyro_z * 0.004;                                        //Calculate the traveled yaw angle and add this to the angle_yaw variable.
+	 	  if (angle_yaw < 0) angle_yaw += 360;                                             //If the compass heading becomes smaller then 0, 360 is added to keep it in the 0 till 360 degrees range.
+	 	  else if (angle_yaw >= 360) angle_yaw -= 360;                                     //If the compass heading becomes larger then 360, 360 is subtracted to keep it in the 0 till 360 degrees range.
+
+	 	 //0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians and not degrees.
+	 	   angle_pitch -= angle_roll * sin((float)gyro_z * 0.000069822);                  //If the IMU has yawed transfer the roll angle to the pitch angel.
+	 	   angle_roll += angle_pitch * sin((float)gyro_z * 0.000069822);                  //If the IMU has yawed transfer the pitch angle to the roll angel.
+
+//	 	   angle_yaw -= course_deviation(angle_yaw, actual_compass_heading) / 1200.0;       //Calculate the difference between the gyro and compass heading and make a small correction.
+//	 	   if (angle_yaw < 0) angle_yaw += 360;                                             //If the compass heading becomes smaller then 0, 360 is added to keep it in the 0 till 360 degrees range.
+//	 	   else if (angle_yaw >= 360) angle_yaw -= 360;   									//If the compass heading becomes larger then 360, 360 is subtracted to keep it in the 0 till 360 degrees range.
+
+
+	 	  //Accelerometer angle calculations
+	 	  acc_total_vector = sqrt((mpu.a[0] *mpu.a[0] ) + (mpu.a[1] * mpu.a[1]) + (mpu.a[2] * mpu.a[2]));    //Calculate the total accelerometer vector.
+
+	 	  if (abs(mpu.a[1]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
+	 	    angle_pitch_acc = asin((float)mpu.a[1] / acc_total_vector) * 57.296;              //Calculate the pitch angle.
+	 	  }
+	 	  if (abs(mpu.a[0]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
+	 	    angle_roll_acc = asin((float)mpu.a[0] / acc_total_vector) * 57.296;               //Calculate the roll angle.
+	 	  }
+
+	 	//angle_pitch_acc = mpu.rpy[1]+5.63;		// -1
+	 	//angle_roll_acc =mpu.rpy[0]-0.76;		// -2.5
+	 	//angle_yaw_acc = mpu.rpy[2];
 	 	//angle_yaw = angle_yaw_acc;
+
+	 	 angle_pitch_acc -= (0.3-1.6+1.4);		// -0.08
+	 	 angle_roll_acc -= -1.45;		// -1
 
 	 	if ( set_gyro_angle ) {
 	 		angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;
 	 		angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;
-	 		angle_yaw = angle_yaw*0.996 + angle_roll_acc * 0.004;
+	 		//angle_yaw = angle_yaw*0.996 + angle_roll_acc * 0.004;
 
 	 	}
 	 	else{
-	 		angle_pitch = angle_pitch_acc;
-	 		angle_roll = angle_roll_acc;
-	 		angle_yaw = angle_yaw_acc;
+	 		angle_pitch = 0;
+	 		angle_roll = 0;
+	 		//angle_yaw = 0;
 	 		set_gyro_angle = true;
 	 	}
 	 		  angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;
@@ -441,6 +536,7 @@ int main(void)
 	 		  }
 
 	 	//	  cuoi = HAL_GetTick() - dau;
+	 		// uint32_t cuoi = HAL_GetTick() - dau;
 	 		  while ( __HAL_TIM_GET_COUNTER(&htim2) - loop_timer < 4000 );
 	 		  loop_timer = __HAL_TIM_GET_COUNTER(&htim2);
 
@@ -461,12 +557,13 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -540,7 +637,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 63;
+  htim2.Init.Prescaler = 71;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -585,7 +682,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 63;
+  htim3.Init.Prescaler = 71;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 20000;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -646,7 +743,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 63;
+  htim4.Init.Prescaler = 71;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 65535;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -684,8 +781,19 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PB2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB11 */
   GPIO_InitStruct.Pin = GPIO_PIN_11;
