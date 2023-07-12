@@ -72,6 +72,8 @@ long acc_total_vector;
 float angle_roll;
 float angle_pitch;
 float angle_yaw;
+float angle_pitch_1;
+float angle_roll_1;
 
 float angle_roll_output;
 float angle_pitch_output;
@@ -80,6 +82,8 @@ float angle_yaw_output;
 float angle_roll_acc;
 float angle_pitch_acc;
 float angle_yaw_acc;
+float angle_pitch_acc_1;
+float angle_roll_acc_1;
 
 float roll_level_adjust;
 float pitch_level_adjust;
@@ -93,17 +97,17 @@ float pid_pitch_setpoint;
 float pid_yaw_setpoint;
 
 
-float pid_p_gain_roll		= 1.68;			//1.5
-float pid_i_gain_roll		= 0.055;			//0.02
-float pid_d_gain_roll		= 15;			//15
+float pid_p_gain_roll		= 1.2;			//1.5
+float pid_i_gain_roll		= 0.005;			//0.02
+float pid_d_gain_roll		= 23;			//15
 
-float pid_p_gain_pitch		= 1.68;			//1.5
-float pid_i_gain_pitch		= 0.055;			//0.02
-float pid_d_gain_pitch		= 15;			//15
+float pid_p_gain_pitch		= 1.2;			//1.5
+float pid_i_gain_pitch		= 0.005;			//0.02
+float pid_d_gain_pitch		= 23;			//15
 
-float pid_p_gain_yaw		= 0.03;			//0.02
-float pid_i_gain_yaw		= 0.0002;
-float pid_d_gain_yaw		= 10;			//15
+float pid_p_gain_yaw		= 0.02;			//0.02
+float pid_i_gain_yaw		= 0.002;
+float pid_d_gain_yaw		= 0.0;			//15
 
 float pid_i_mem_roll;
 float pid_i_mem_pitch;
@@ -157,18 +161,18 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 	if(GPIO_Pin == GPIO_PIN_11){
 		tick = __HAL_TIM_GET_COUNTER(&htim4);
 		__HAL_TIM_SET_COUNTER(&htim4,0);
-		if(tick < 2000){
+		if(tick < 2008){
 			if(pulse==2){
-				if(tick<1000) ch[pulse]=ch[pulse];
-				else
+//				if(tick<1000) ch[pulse]=ch[pulse];
+//				else
 					ch[pulse]= tick;
 			}
 			else if((pulse ==4) || (pulse ==5)){
 				ch[pulse]= tick;
 			}
 			else{
-				if(tick<1200 || tick >1700 ) ch[pulse]=ch[pulse];
-				else
+//				if(tick<1200 || tick >1700 ) ch[pulse]=ch[pulse];
+//				else
 					ch[pulse]= mapValue(tick, 1200, 1700, 1000, 2000);
 				//ch[pulse]= tick;
 			}
@@ -371,10 +375,10 @@ int main(void)
 	 	  acc_total_vector = sqrt((mpu.a[0] *mpu.a[0] ) + (mpu.a[1] * mpu.a[1]) + (mpu.a[2] * mpu.a[2]));    //Calculate the total accelerometer vector.
 
 	 	  if (abs(mpu.a[1]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
-	 	    angle_pitch_acc = asin((float)mpu.a[1] / acc_total_vector) * 57.296;              //Calculate the pitch angle.
+	 	    angle_pitch_acc_1 = asin((float)mpu.a[1] / acc_total_vector) * 57.296;              //Calculate the pitch angle.
 	 	  }
 	 	  if (abs(mpu.a[0]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
-	 	    angle_roll_acc = asin((float)mpu.a[0] / acc_total_vector) * 57.296;               //Calculate the roll angle.
+	 	    angle_roll_acc_1 = asin((float)mpu.a[0] / acc_total_vector) * 57.296;               //Calculate the roll angle.
 	 	  }
 
 	 	//angle_pitch_acc = mpu.rpy[1]+5.63;		// -1
@@ -382,8 +386,11 @@ int main(void)
 	 	//angle_yaw_acc = mpu.rpy[2];
 	 	//angle_yaw = angle_yaw_acc;
 
-	 	 angle_pitch_acc -= (0.3-1.6+1.4);		// -0.08
-	 	 angle_roll_acc -= -1.45;		// -1
+	 	 angle_pitch_acc_1 -= 0.57;		// -0.08
+	 	 angle_roll_acc_1 -= -0.427;		// -1
+
+	 	angle_pitch_acc = angle_pitch_acc_1;
+	 	angle_roll_acc = angle_roll_acc_1;
 
 	 	if ( set_gyro_angle ) {
 	 		angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;
@@ -392,8 +399,8 @@ int main(void)
 
 	 	}
 	 	else{
-	 		angle_pitch = 0;
-	 		angle_roll = 0;
+	 		angle_pitch = angle_pitch_acc;
+	 		angle_roll = angle_roll_acc;
 	 		//angle_yaw = 0;
 	 		set_gyro_angle = true;
 	 	}
@@ -536,8 +543,8 @@ int main(void)
 	 		  }
 
 	 	//	  cuoi = HAL_GetTick() - dau;
-	 		// uint32_t cuoi = HAL_GetTick() - dau;
-	 		  while ( __HAL_TIM_GET_COUNTER(&htim2) - loop_timer < 4000 );
+	 	//	 uint32_t cuoi = HAL_GetTick() - dau;
+	 		  while ( abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) < 4000 );
 	 		  loop_timer = __HAL_TIM_GET_COUNTER(&htim2);
 
 

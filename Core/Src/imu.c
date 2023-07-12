@@ -40,9 +40,9 @@ uint8_t setupMPU(MPU9250_t *MPU9250, uint8_t addr) {
             return 0;
         }
         //mpu_i2c_addr = addr;
-        MPU9250SelfTest(&hi2c1, SelfTest);
-        calibrateMPU9250(&hi2c1, gyroBias, accelBias);
-   		HAL_Delay(1000);
+       // MPU9250SelfTest(&hi2c1, SelfTest);
+       // calibrateMPU9250(&hi2c1, gyroBias, accelBias);
+   	//	HAL_Delay(1000);
 
         if (isConnectedMPU9250(MPU9250)==1) {
         	MPU9250_Init(MPU9250);
