@@ -35,7 +35,7 @@ bool set_gyro_angle = false;
 volatile long ch[8];
 volatile long tick;
 volatile uint8_t pulse;
-float dt =0.007;
+float dt =0.006;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -57,7 +57,7 @@ long gyro_x_cal;
 long gyro_y_cal;
 long gyro_z_cal;
 
-int loop_timer;
+uint16_t loop_timer;
 
 int16_t gyro_x;
 int16_t gyro_y;
@@ -97,21 +97,25 @@ float pid_pitch_setpoint;
 float pid_yaw_setpoint;
 
 
-float pid_p_gain_roll		= 1.2;			//1.5
-float pid_i_gain_roll		= 0.005;			//0.02
-float pid_d_gain_roll		= 23;			//15
+float pid_p_gain_roll		= 0.5;			//1.5
+float pid_i_gain_roll		= 3.5;			//0.02
+float pid_d_gain_roll		= 0.01;			//15
 
-float pid_p_gain_pitch		= 1.2;			//1.5
-float pid_i_gain_pitch		= 0.005;			//0.02
-float pid_d_gain_pitch		= 23;			//15
+float pid_p_gain_pitch		= 0.5;			//1.5
+float pid_i_gain_pitch		= 3.5;			//0.02
+float pid_d_gain_pitch		= 0.01;			//15
 
-float pid_p_gain_yaw		= 0.02;			//0.02
-float pid_i_gain_yaw		= 0.002;
+float pid_p_gain_yaw		= 2;			//0.02
+float pid_i_gain_yaw		= 12;
 float pid_d_gain_yaw		= 0.0;			//15
 
 float pid_i_mem_roll;
 float pid_i_mem_pitch;
 float pid_i_mem_yaw;
+
+float pid_i_mem_roll_last;
+float pid_i_mem_pitch_last;
+float pid_i_mem_yaw_last;
 
 float pid_last_roll_d_error;
 float pid_last_pitch_d_eroor;
@@ -224,7 +228,8 @@ void gyro_signalen(void) {
 //  gyro_roll = HWire.read() << 8 | HWire.read();                //Read high and low part of the angular data.
 //  gyro_pitch = HWire.read() << 8 | HWire.read();               //Read high and low part of the angular data.
 //  gyro_yaw = HWire.read() << 8 | HWire.read();                 //Read high and low part of the angular data.
-	update_accel_gyro(&mpu);
+	//update_accel_gyro(&mpu);
+	if(updateMPU(&mpu)==1){
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
    	 //HAL_Delay(100);
 //    gyro_x = mpu.g[0];
@@ -240,6 +245,8 @@ void gyro_signalen(void) {
     gyro_y = mpu.g[1] + 2.1;                                //Subtact the manual gyro pitch calibration value.
     gyro_z = mpu.g[2] - 0.035;                                    //Subtact the manual gyro yaw calibration value.
 
+	}
+	else HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
 }
 /* USER CODE END PV */
 
@@ -286,6 +293,7 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+
   MX_TIM4_Init();
   MX_TIM3_Init();
   MX_I2C1_Init();
@@ -350,21 +358,21 @@ int main(void)
 //	 		 			  gyro_x = mpu.g[0]-2.53;
 //	 		 			  gyro_y = mpu.g[1]-(-1.95);
 //	 		 			  gyro_z = mpu.g[2]-(-0.15);
-	 	gyro_pitch_input 	= ( gyro_pitch_input * 0.7 ) + (float)( -gyro_y  * 0.3);
+	 	gyro_pitch_input 	= ( gyro_pitch_input * 0.7 ) + (float)( gyro_y  * 0.3);
 	 	gyro_roll_input 	= ( gyro_roll_input * 0.7 ) + (float)( gyro_x  * 0.3);
 	 	gyro_yaw_input 	= ( gyro_yaw_input * 0.7 ) + (float)( -gyro_z  * 0.3);
 
 	 	//Gyro angle calculations
 	 	  //0.0000611 = 1 / (250Hz / 65.5)
-	 	  angle_pitch += (float)gyro_y * 0.004;                                    //Calculate the traveled pitch angle and add this to the angle_pitch variable.
-	 	  angle_roll += (float)gyro_x * 0.004;                                      //Calculate the traveled roll angle and add this to the angle_roll variable.
-	 	  angle_yaw += (float)gyro_z * 0.004;                                        //Calculate the traveled yaw angle and add this to the angle_yaw variable.
-	 	  if (angle_yaw < 0) angle_yaw += 360;                                             //If the compass heading becomes smaller then 0, 360 is added to keep it in the 0 till 360 degrees range.
-	 	  else if (angle_yaw >= 360) angle_yaw -= 360;                                     //If the compass heading becomes larger then 360, 360 is subtracted to keep it in the 0 till 360 degrees range.
+//	 	  angle_pitch += (float)gyro_y * 0.004;                                    //Calculate the traveled pitch angle and add this to the angle_pitch variable.
+//	 	  angle_roll += (float)gyro_x * 0.004;                                      //Calculate the traveled roll angle and add this to the angle_roll variable.
+//	 	  angle_yaw += (float)gyro_z * 0.004;                                        //Calculate the traveled yaw angle and add this to the angle_yaw variable.
+//	 	  if (angle_yaw < 0) angle_yaw += 360;                                             //If the compass heading becomes smaller then 0, 360 is added to keep it in the 0 till 360 degrees range.
+//	 	  else if (angle_yaw >= 360) angle_yaw -= 360;                                     //If the compass heading becomes larger then 360, 360 is subtracted to keep it in the 0 till 360 degrees range.
 
 	 	 //0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians and not degrees.
-	 	   angle_pitch -= angle_roll * sin((float)gyro_z * 0.000069822);                  //If the IMU has yawed transfer the roll angle to the pitch angel.
-	 	   angle_roll += angle_pitch * sin((float)gyro_z * 0.000069822);                  //If the IMU has yawed transfer the pitch angle to the roll angel.
+//	 	   angle_pitch -= angle_roll * sin((float)gyro_z * 0.000069822);                  //If the IMU has yawed transfer the roll angle to the pitch angel.
+//	 	   angle_roll += angle_pitch * sin((float)gyro_z * 0.000069822);                  //If the IMU has yawed transfer the pitch angle to the roll angel.
 
 //	 	   angle_yaw -= course_deviation(angle_yaw, actual_compass_heading) / 1200.0;       //Calculate the difference between the gyro and compass heading and make a small correction.
 //	 	   if (angle_yaw < 0) angle_yaw += 360;                                             //If the compass heading becomes smaller then 0, 360 is added to keep it in the 0 till 360 degrees range.
@@ -372,44 +380,44 @@ int main(void)
 
 
 	 	  //Accelerometer angle calculations
-	 	  acc_total_vector = sqrt((mpu.a[0] *mpu.a[0] ) + (mpu.a[1] * mpu.a[1]) + (mpu.a[2] * mpu.a[2]));    //Calculate the total accelerometer vector.
-
-	 	  if (abs(mpu.a[1]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
-	 	    angle_pitch_acc_1 = asin((float)mpu.a[1] / acc_total_vector) * 57.296;              //Calculate the pitch angle.
-	 	  }
-	 	  if (abs(mpu.a[0]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
-	 	    angle_roll_acc_1 = asin((float)mpu.a[0] / acc_total_vector) * 57.296;               //Calculate the roll angle.
-	 	  }
+//	 	  acc_total_vector = sqrt((mpu.a[0] *mpu.a[0] ) + (mpu.a[1] * mpu.a[1]) + (mpu.a[2] * mpu.a[2]));    //Calculate the total accelerometer vector.
+//
+//	 	  if (abs(mpu.a[1]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
+//	 	    angle_pitch_acc_1 = asin((float)mpu.a[1] / acc_total_vector) * 57.296;              //Calculate the pitch angle.
+//	 	  }
+//	 	  if (abs(mpu.a[0]) < acc_total_vector) {                                             //Prevent the asin function to produce a NaN.
+//	 	    angle_roll_acc_1 = asin((float)mpu.a[0] / acc_total_vector) * 57.296;               //Calculate the roll angle.
+//	 	  }
 
 	 	//angle_pitch_acc = mpu.rpy[1]+5.63;		// -1
 	 	//angle_roll_acc =mpu.rpy[0]-0.76;		// -2.5
 	 	//angle_yaw_acc = mpu.rpy[2];
 	 	//angle_yaw = angle_yaw_acc;
 
-	 	 angle_pitch_acc_1 -= 0.57;		// -0.08
-	 	 angle_roll_acc_1 -= -0.427;		// -1
-
-	 	angle_pitch_acc = angle_pitch_acc_1;
-	 	angle_roll_acc = angle_roll_acc_1;
+//	 	 angle_pitch_acc_1 -= 0.57;		// -0.08
+//	 	 angle_roll_acc_1 -= -0.427;		// -1
+//
+	 	angle_pitch_acc = (-(mpu.rpy[1] + 0.15));
+	 	angle_roll_acc = (mpu.rpy[0] + 0.3);
 
 	 	if ( set_gyro_angle ) {
-	 		angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;
-	 		angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;
+	 		angle_pitch = angle_pitch * 0.8 + angle_pitch_acc * 0.2;
+	 		angle_roll = angle_roll * 0.8 + angle_roll_acc * 0.2;
 	 		//angle_yaw = angle_yaw*0.996 + angle_roll_acc * 0.004;
 
 	 	}
 	 	else{
-	 		angle_pitch = angle_pitch_acc;
-	 		angle_roll = angle_roll_acc;
+	 		angle_pitch = (-(mpu.rpy[1] + 0.15));
+	 		angle_roll = (mpu.rpy[0] + 0.3);
 	 		//angle_yaw = 0;
 	 		set_gyro_angle = true;
 	 	}
 	 		  angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;
 	 		  angle_roll_output = angle_roll_output * 0.9 + angle_roll * 0.1;
-	 		  angle_yaw_output = angle_yaw_output * 0.9 + angle_yaw * 0.1;
+	 		  //angle_yaw_output = angle_yaw_output * 0.9 + angle_yaw * 0.1;
 
 	 		  pitch_level_adjust = angle_pitch_output * 15;
-	 		  roll_level_adjust = angle_roll_output * 15;
+	 		  roll_level_adjust =  angle_roll_output * 15;
 
 	 		  if ( !auto_level ){
 	 			  pitch_level_adjust =0;
@@ -425,10 +433,15 @@ int main(void)
 
 	 			  pid_i_mem_roll = 0;
 	 			  pid_last_roll_d_error = 0;
+	 			  pid_i_mem_roll_last = 0;
+
 	 			  pid_i_mem_pitch = 0;
 	 			  pid_last_pitch_d_eroor = 0;
+	 			  pid_i_mem_pitch_last = 0;
+
 	 			  pid_i_mem_yaw = 0;
 	 			  pid_last_yaw_d_error = 0;
+	 			  pid_i_mem_yaw_last = 0;
 	 		  }
 
 	 		  if ( start == 2 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1950 ){
@@ -436,8 +449,8 @@ int main(void)
 	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 0);
 	 		  }
 
-	 		  if ( receiver_input_channel_5 > 1500 ) turning_speed = 5;
-	 		  else turning_speed = 3;
+	 		  if ( receiver_input_channel_5 > 1500 ) turning_speed = 7;
+	 		  else turning_speed = 5;
 
 
 	 		  pid_roll_setpoint =0;
@@ -463,57 +476,62 @@ int main(void)
 
 
 	 		  //roll calculation
-	 		  pid_error_temp = gyro_roll_input - pid_roll_setpoint;
-	 		  pid_i_mem_roll += pid_i_gain_roll * pid_error_temp;
+	 		  pid_error_temp = -gyro_roll_input + pid_roll_setpoint;
+	 		  pid_i_mem_roll =  pid_i_mem_roll_last + 0.5 * pid_i_gain_roll * dt * (pid_error_temp +pid_last_roll_d_error) ;
 
 	 		  if ( pid_i_mem_roll > pid_max_roll ) pid_i_mem_roll = pid_max_roll;
 	 		  else if ( pid_i_mem_roll < pid_max_roll * -1 ) pid_i_mem_roll = pid_max_roll * -1;
 
-	 		  pid_roll_output = ( pid_p_gain_roll * pid_error_temp ) + pid_i_mem_roll + ( pid_d_gain_roll * ( pid_error_temp - pid_last_roll_d_error));
+	 		  pid_roll_output = ( pid_p_gain_roll * (pid_error_temp)) + pid_i_mem_roll + ( pid_d_gain_roll * (( pid_error_temp - pid_last_roll_d_error) / dt));
 
 	 		  if ( pid_roll_output > pid_max_roll ) pid_roll_output = pid_max_roll;
 	 		  else if ( pid_roll_output < pid_max_roll * -1) pid_roll_output = pid_max_roll * -1;
 
 	 		  pid_last_roll_d_error = pid_error_temp;
+	 		  pid_i_mem_roll_last = pid_i_mem_roll;
 
-
-	 		  pid_error_temp = gyro_pitch_input - pid_pitch_setpoint;
-	 		  pid_i_mem_pitch += pid_i_gain_pitch * pid_error_temp;
+	 		  // pitch calculation
+	 		  pid_error_temp = -gyro_pitch_input + pid_pitch_setpoint;
+	 		  pid_i_mem_pitch = pid_i_mem_pitch_last + 0.5*pid_i_gain_pitch*dt*(pid_error_temp+pid_last_pitch_d_eroor);
 
 	 		  if ( pid_i_mem_pitch > pid_max_pitch ) pid_i_mem_pitch = pid_max_pitch;
 	 		  else if ( pid_i_mem_pitch < pid_max_pitch * -1 ) pid_i_mem_pitch = pid_max_pitch * -1;
 
-	 		  pid_pitch_output = ( pid_p_gain_pitch * pid_error_temp ) + pid_i_mem_pitch + ( pid_d_gain_pitch * ( pid_error_temp - pid_last_pitch_d_eroor));
+	 		  pid_pitch_output = ( pid_p_gain_pitch * (pid_error_temp) ) + pid_i_mem_pitch + ( pid_d_gain_pitch * (( pid_error_temp - pid_last_pitch_d_eroor)/dt));
 
 	 		  if ( pid_pitch_output > pid_max_pitch ) pid_pitch_output = pid_max_pitch;
 	 		  else if ( pid_pitch_output < pid_max_pitch * -1 ) pid_pitch_output = pid_max_pitch * -1;
 
 	 		  pid_last_pitch_d_eroor = pid_error_temp;
+	 		  pid_i_mem_pitch_last = pid_i_mem_pitch;
 
-
-	 		  pid_error_temp = gyro_yaw_input - pid_yaw_setpoint;
-	 		  pid_i_mem_yaw += pid_p_gain_yaw * pid_error_temp;
+	 		  // yaw calculation
+	 		  pid_error_temp = -gyro_yaw_input + pid_yaw_setpoint;
+	 		  pid_i_mem_yaw  = pid_i_mem_yaw_last + 0.5 * pid_i_gain_yaw * dt * (pid_error_temp+pid_last_yaw_d_error);
 
 	 		  if ( pid_i_mem_yaw > pid_max_yaw ) pid_i_mem_yaw = pid_max_yaw;
 	 		  else if ( pid_i_mem_yaw < pid_max_yaw * -1 ) pid_i_mem_yaw = pid_max_yaw * -1;
 
-	 		  pid_yaw_output = ( pid_p_gain_yaw * pid_error_temp ) + pid_i_mem_yaw + ( pid_d_gain_yaw * ( pid_error_temp - pid_last_yaw_d_error ));
+	 		  pid_yaw_output = ( pid_p_gain_yaw * (pid_error_temp) ) + pid_i_mem_yaw + ( pid_d_gain_yaw * (( pid_error_temp - pid_last_yaw_d_error )/dt));
 
 	 		  if ( pid_yaw_output > pid_max_yaw ) pid_yaw_output = pid_max_yaw;
 	 		  else if ( pid_yaw_output < pid_max_yaw * -1 ) pid_yaw_output = pid_max_yaw * -1;
 
 	 		  pid_last_yaw_d_error = pid_error_temp;
+	 		  pid_i_mem_yaw_last = pid_i_mem_pitch;
+
+
 
 	 		  throttle = receiver_input_channel_1;
 
 
 	 		  if ( start == 2 ){
-	 			  if ( throttle > 1900 ) throttle = 1900;
+	 			  if ( throttle > 1800 ) throttle = 1800;
 
-	 			  esc_1 = throttle - pid_pitch_output + pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 1 (front-right - CCW).
-	 			  esc_2 = throttle + pid_pitch_output + pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 2 (rear-right - CW).
-	 			  esc_3 = throttle + pid_pitch_output - pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 3 (rear-left - CCW).
-	 			  esc_4 = throttle - pid_pitch_output - pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 4 (front-left - CW).
+	 			  esc_1 = throttle - pid_pitch_output - pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 1 (front-right - CCW).
+	 			  esc_2 = throttle + pid_pitch_output - pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 2 (rear-right - CW).
+	 			  esc_3 = throttle + pid_pitch_output + pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 3 (rear-left - CCW).
+	 			  esc_4 = throttle - pid_pitch_output + pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 4 (front-left - CW).
 
 	 			  if ( esc_1 < min_throthle ) esc_1 = min_throthle;
 	 			  if ( esc_2 < min_throthle ) esc_2 = min_throthle;
@@ -538,14 +556,17 @@ int main(void)
 	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_3,esc_3);
 	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_4,esc_4);
 
-	 		  if ( __HAL_TIM_GET_COUNTER(&htim3) - loop_timer > 4070 ){
-	 	//		  HAL_GPIO_TogglePin(led_status_GPIO_Port, led_status_Pin);
+	 		  if (abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) > 7000 ){
+	 			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);
 	 		  }
 
 	 	//	  cuoi = HAL_GetTick() - dau;
-	 	//	 uint32_t cuoi = HAL_GetTick() - dau;
-	 		  while ( abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) < 4000 );
-	 		  loop_timer = __HAL_TIM_GET_COUNTER(&htim2);
+	 		// uint32_t cuoi = HAL_GetTick() - dau;
+	 		 //uint32_t cuoi2 = abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer);
+	 		 while ( abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) < 6000 );
+	 		 //cuoi2 = abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer);
+	 		 __HAL_TIM_SET_COUNTER(&htim2,0);
+	 		 loop_timer = __HAL_TIM_GET_COUNTER(&htim2);
 
 
   }

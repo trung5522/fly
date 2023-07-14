@@ -271,9 +271,9 @@ void update_accel_gyro(MPU9250_t *MPU9250) {
         readAccelGyro(raw_acc_gyro_data);  // INT cleared on any read
 
         // Now we'll calculate the accleration value into actual g's
-        MPU9250->a[0] = (float)raw_acc_gyro_data[0]; //* //MPU9250->acc_resolution ;  // get actual g value, this depends on scale being set
-        MPU9250->a[1] = (float)raw_acc_gyro_data[1]; //* //MPU9250->acc_resolution ;
-        MPU9250->a[2] = (float)raw_acc_gyro_data[2]; //* //PU9250->acc_resolution ;
+        MPU9250->a[0] = (float)raw_acc_gyro_data[0] * MPU9250->acc_resolution ;  // get actual g value, this depends on scale being set
+        MPU9250->a[1] = (float)raw_acc_gyro_data[1] * MPU9250->acc_resolution ;
+        MPU9250->a[2] = (float)raw_acc_gyro_data[2] * MPU9250->acc_resolution ;
 
         MPU9250->temperature_count = raw_acc_gyro_data[3];                  // Read the adc values
         MPU9250->temperature = ((float)MPU9250->temperature_count) / 333.87 + 21.0;  // Temperature in degrees Centigrade
