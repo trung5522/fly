@@ -546,8 +546,8 @@ int main(void)
 
 	 	}
 	 	else{
-	 		angle_pitch = (-(mpu.rpy[1] + 0.15));
-	 		angle_roll = (mpu.rpy[0] + 0.3);
+	 		angle_pitch = (-(mpu.rpy[1] + 1.57));
+	 		angle_roll = (mpu.rpy[0] + 0.38);
 	 		//angle_yaw = 0;
 	 		set_gyro_angle = true;
 	 	}
@@ -664,7 +664,7 @@ int main(void)
 	 		  throttle = receiver_input_channel_1;
 
 
-	 		  if ( start == 2 ){
+	 		  if ( start == 2 && throttle > 1050 ){
 	 			  if ( throttle > 1800 ) throttle = 1800;
 
 	 			  esc_1 = throttle - pid_pitch_output - pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 1 (front-right - CCW).
