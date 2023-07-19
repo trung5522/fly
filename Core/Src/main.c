@@ -40,6 +40,40 @@ float dt =0.006;
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+//kalman
+float Kalman1DOutput[]={0,0};
+float AngleRoll, AnglePitch;
+float KalmanAngleRoll=0, KalmanUncertaintyAngleRoll=2*2;
+float KalmanAnglePitch=0, KalmanUncertaintyAnglePitch=2*2;
+float DesiredAngleRoll, DesiredAnglePitch,DesiredRateYaw;
+
+float ErrorRateRoll, ErrorRatePitch, ErrorRateYaw;
+float InputRoll, InputThrottle, InputPitch, InputYaw;
+float PrevErrorRateRoll, PrevErrorRatePitch, PrevErrorRateYaw;
+float PrevItermRateRoll, PrevItermRatePitch, PrevItermRateYaw;
+////pid
+float PIDReturn[]={0, 0, 0};
+float PRateRoll=0.6;
+float PRatePitch=0.6;
+//PRatePitch=PRateRoll;
+float PRateYaw=2;
+float IRateRoll=3.5;
+float IRatePitch=3.5;
+float IRateYaw=12;
+float DRateRoll=0.03;
+float DRatePitch=0.03;
+float DRateYaw=0;
+
+float DesiredRateRoll, DesiredRatePitch,DesiredRateYaw;
+float ErrorAngleRoll, ErrorAnglePitch;
+float PrevErrorAngleRoll, PrevErrorAnglePitch;
+float PrevItermAngleRoll, PrevItermAnglePitch;
+float PAngleRoll=2; float PAnglePitch=2;
+float IAngleRoll=0; float IAnglePitch=0;
+float DAngleRoll=0; float DAnglePitch=0;
+
+
+///////
 MPU9250_t mpu;
 
 
@@ -64,122 +98,122 @@ int16_t gyro_y;
 int16_t gyro_z;
 
 
-long acc_x;
-long acc_y;
-long acc_z;
-long acc_total_vector;
+//long acc_x;
+//long acc_y;
+//long acc_z;
+//long acc_total_vector;
 
 float angle_roll;
 float angle_pitch;
 float angle_yaw;
-float angle_pitch_1;
-float angle_roll_1;
+//float angle_pitch_1;
+//float angle_roll_1;
 
 float angle_roll_output;
 float angle_pitch_output;
 float angle_yaw_output;
 
-float angle_roll_acc;
-float angle_pitch_acc;
-float angle_yaw_acc;
-float angle_pitch_acc_1;
-float angle_roll_acc_1;
+//float angle_roll_acc;
+//float angle_pitch_acc;
+//float angle_yaw_acc;
+//float angle_pitch_acc_1;
+//float angle_roll_acc_1;
 
-float roll_level_adjust;
-float pitch_level_adjust;
+//float roll_level_adjust;
+//float pitch_level_adjust;
 
 float gyro_roll_input;
 float gyro_pitch_input;
 float gyro_yaw_input;
 
-float pid_roll_setpoint;
-float pid_pitch_setpoint;
-float pid_yaw_setpoint;
+//float pid_roll_setpoint;
+//float pid_pitch_setpoint;
+//float pid_yaw_setpoint;
 
 
-float pid_p_gain_roll		= 0.5;			//1.5
-float pid_i_gain_roll		= 3.5;			//0.02
-float pid_d_gain_roll		= 0.01;			//15
+//float pid_p_gain_roll		= 0.5;			//1.5
+//float pid_i_gain_roll		= 3.5;			//0.02
+//float pid_d_gain_roll		= 0.01;			//15
+//
+//float pid_p_gain_pitch		= 0.5;			//1.5
+//float pid_i_gain_pitch		= 3.5;			//0.02
+//float pid_d_gain_pitch		= 0.01;			//15
+//
+//float pid_p_gain_yaw		= 0.5;			//0.02
+//float pid_i_gain_yaw		= 3.5;
+//float pid_d_gain_yaw		= 0.01;			//15
 
-float pid_p_gain_pitch		= 0.5;			//1.5
-float pid_i_gain_pitch		= 3.5;			//0.02
-float pid_d_gain_pitch		= 0.01;			//15
+//float pid_i_mem_roll;
+//float pid_i_mem_pitch;
+//float pid_i_mem_yaw;
+//
+//float pid_i_mem_roll_last;
+//float pid_i_mem_pitch_last;
+//float pid_i_mem_yaw_last;
+//
+//float pid_last_roll_d_error;
+//float pid_last_pitch_d_error;
+//float pid_last_yaw_d_error;
+//
+//float pid_error_temp;
 
-float pid_p_gain_yaw		= 2;			//0.02
-float pid_i_gain_yaw		= 12;
-float pid_d_gain_yaw		= 0.0;			//15
+//float pid_roll_output;
+//float pid_pitch_output;
+//float pid_yaw_output;
 
-float pid_i_mem_roll;
-float pid_i_mem_pitch;
-float pid_i_mem_yaw;
+//int pid_max_roll			= 400;
+//int pid_max_pitch			= 400;
+//int pid_max_yaw				= 400;
 
-float pid_i_mem_roll_last;
-float pid_i_mem_pitch_last;
-float pid_i_mem_yaw_last;
+int esc1;
+int esc2;
+int esc3;
+int esc4;
 
-float pid_last_roll_d_error;
-float pid_last_pitch_d_eroor;
-float pid_last_yaw_d_error;
+//int start;
 
-float pid_error_temp;
-
-float pid_roll_output;
-float pid_pitch_output;
-float pid_yaw_output;
-
-int pid_max_roll			= 400;
-int pid_max_pitch			= 400;
-int pid_max_yaw				= 400;
-
-int esc_1;
-int esc_2;
-int esc_3;
-int esc_4;
-
-int start;
-
-int min_throthle = 1070;
-int max_throthle = 2000;
-int disable_motor = 1000;
+//int min_throthle = 1070;
+//int max_throthle = 2000;
+//int disable_motor = 1000;
 
 
-float turning_speed = 5.0;
-bool auto_level = true;
+//float turning_speed = 5.0;
+//bool auto_level = true;
 
 //float KalmanOut[2];
 /* Kalman filter variables */
-float Q_anglez= 0.008f;; // Process noise variance for the accelerometer
-float Q_biasz= 0.003f; // Process noise variance for the gyro bias
-float R_measurez= 0.05f; // Measurement noise variance - this is actually the variance of the measurement noise
-
-float Q_angle= 0.008f; // Process noise variance for the accelerometer
-float Q_bias= 0.003f; // Process noise variance for the gyro bias
-float R_measure= 0.05f;// Measurement noise variance - this is actually the variance of the measurement noise
-
-
-
-float angle = 0.0f;; // The angle calculated by the Kalman filter - part of the 2x1 state vector
-float bias =0.0f;; // The gyro bias calculated by the Kalman filter - part of the 2x1 state vector
-float rate; // Unbiased rate calculated from the rate and the calculated bias - you have to call getAngle to update the rate
-
-float P[2][2]; // Error covariance matrix - This is a 2x2 matrix
-float S;
-float K[2];
-float y;
-float P00_temp;
-float P01_temp;
+//float Q_anglez= 0.008f;; // Process noise variance for the accelerometer
+//float Q_biasz= 0.003f; // Process noise variance for the gyro bias
+//float R_measurez= 0.05f; // Measurement noise variance - this is actually the variance of the measurement noise
+//
+//float Q_angle= 0.008f; // Process noise variance for the accelerometer
+//float Q_bias= 0.003f; // Process noise variance for the gyro bias
+//float R_measure= 0.05f;// Measurement noise variance - this is actually the variance of the measurement noise
 
 
-float anglez = 0.0f; // The angle calculated by the Kalman filter - part of the 2x1 state vector
-float biasz =0.0f;// The gyro bias calculated by the Kalman filter - part of the 2x1 state vector
-float ratez; // Unbiased rate calculated from the rate and the calculated bias - you have to call getAngle to update the rate
 
-float Pz[2][2]; // Error covariance matrix - This is a 2x2 matrix
-float Sz;
-float Kz[2];
-float yz;
-float P00_tempz;
-float P01_tempz;
+//float angle = 0.0f;; // The angle calculated by the Kalman filter - part of the 2x1 state vector
+//float bias =0.0f;; // The gyro bias calculated by the Kalman filter - part of the 2x1 state vector
+//float rate; // Unbiased rate calculated from the rate and the calculated bias - you have to call getAngle to update the rate
+//
+//float P[2][2]; // Error covariance matrix - This is a 2x2 matrix
+//float S;
+//float K[2];
+//float y;
+//float P00_temp;
+//float P01_temp;
+//
+//
+//float anglez = 0.0f; // The angle calculated by the Kalman filter - part of the 2x1 state vector
+//float biasz =0.0f;// The gyro bias calculated by the Kalman filter - part of the 2x1 state vector
+//float ratez; // Unbiased rate calculated from the rate and the calculated bias - you have to call getAngle to update the rate
+//
+//float Pz[2][2]; // Error covariance matrix - This is a 2x2 matrix
+//float Sz;
+//float Kz[2];
+//float yz;
+//float P00_tempz;
+//float P01_tempz;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -196,109 +230,35 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
-float Kalman_getAngle_roll(float newAngle, float newRate, float dt) {
-    // KasBot V2  -  Kalman filter module - http://www.x-firm.com/?page_id=145
-    // Modified by Kristian Lauszus
-    // See my blog post for more information: http://blog.tkjelectronics.dk/2012/09/a-practical-approach-to-kalman-filter-and-how-to-implement-it
+void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput, float KalmanMeasurement) {
+  KalmanState=KalmanState+0.006*KalmanInput;
+  KalmanUncertainty=KalmanUncertainty + 0.006 * 0.006 * 4 * 4;
+  float KalmanGain=KalmanUncertainty * 1/(1*KalmanUncertainty + 3 * 3);
+  KalmanState=KalmanState+KalmanGain * (KalmanMeasurement-KalmanState);
+  KalmanUncertainty=(1-KalmanGain) * KalmanUncertainty;
+  Kalman1DOutput[0]=KalmanState;
+  Kalman1DOutput[1]=KalmanUncertainty;
+}
+void pid_equation(float Error, float P , float I, float D, float PrevError, float PrevIterm) {
+  float Pterm=P*Error;
+  float Iterm=PrevIterm+I*(Error+PrevError)*0.006/2;
+  if (Iterm > 400) Iterm=400;
+  else if (Iterm <-400) Iterm=-400;
+  float Dterm=D*(Error-PrevError)/0.006;
+  float PIDOutput= Pterm+Iterm+Dterm;
+  if (PIDOutput>400) PIDOutput=400;
+  else if (PIDOutput <-400) PIDOutput=-400;
+  PIDReturn[0]=PIDOutput;
+  PIDReturn[1]=Error;
+  PIDReturn[2]=Iterm;
+}
 
-    // Discrete Kalman filter time update equations - Time Update ("Predict")
-    // Update xhat - Project the state ahead
-    /* Step 1 */
-   rate = newRate - bias;
-    angle += dt * rate;
-
-    // Update estimation error covariance - Project the error covariance ahead
-    /* Step 2 */
-    P[0][0] += dt * (dt*P[1][1] - P[0][1] - P[1][0] + Q_angle);
-    P[0][1] -= dt * P[1][1];
-    P[1][0] -= dt * P[1][1];
-    P[1][1] += (Q_bias) * dt;
-
-    // Discrete Kalman filter measurement update equations - Measurement Update ("Correct")
-    // Calculate Kalman gain - Compute the Kalman gain
-    /* Step 4 */
-     S = P[0][0] + R_measure; // Estimate error
-    /* Step 5 */
-     // Kalman gain - This is a 2x1 vector
-    K[0] = P[0][0] / S;
-    K[1] = P[1][0] / S;
-
-    // Calculate angle and bias - Update estimate with measurement zk (newAngle)
-    /* Step 3 */
-     y = newAngle - angle; // Angle difference
-    /* Step 6 */
-    angle += K[0] * y;
-    bias += K[1] * y;
-
-    // Calculate estimation error covariance - Update the error covariance
-    /* Step 7 */
-    P00_temp = P[0][0];
-    P01_temp = P[0][1];
-
-    P[0][0] -= K[0] * P00_temp;
-    P[0][1] -= K[0] * P01_temp;
-    P[1][0] -= K[1] * P00_temp;
-    P[1][1] -= K[1] * P01_temp;
-
-    return angle;
-};
-//
-float Kalman_getAngle_pitch(float newAnglez, float newRatez, float dt) {
-    // KasBot V2  -  Kalman filter module - http://www.x-firm.com/?page_id=145
-    // Modified by Kristian Lauszus
-    // See my blog post for more information: http://blog.tkjelectronics.dk/2012/09/a-practical-approach-to-kalman-filter-and-how-to-implement-it
-
-    // Discrete Kalman filter time update equations - Time Update ("Predict")
-    // Update xhat - Project the state ahead
-    /* Step 1 */
-    ratez = newRatez - biasz;
-    anglez += dt * ratez;
-
-    // Update estimation error covariance - Project the error covariance ahead
-    /* Step 2 */
-    Pz[0][0] += dt * (dt*Pz[1][1] - Pz[0][1] - Pz[1][0] + Q_anglez);
-    Pz[0][1] -= dt * Pz[1][1];
-    Pz[1][0] -= dt * Pz[1][1];
-    Pz[1][1] += (Q_biasz ) * dt;
-
-    // Discrete Kalman filter measurement update equations - Measurement Update ("Correct")
-    // Calculate Kalman gain - Compute the Kalman gain
-    /* Step 4 */
-     Sz = Pz[0][0] + R_measurez; // Estimate error
-    /* Step 5 */
-     // Kalman gain - This is a 2x1 vector
-    Kz[0] = Pz[0][0] / Sz;
-    Kz[1] = Pz[1][0] / Sz;
-
-    // Calculate angle and bias - Update estimate with measurement zk (newAngle)
-    /* Step 3 */
-     yz = newAnglez - anglez; // Angle difference
-    /* Step 6 */
-    anglez += Kz[0] * yz;
-    biasz += Kz[1] * yz;
-
-    // Calculate estimation error covariance - Update the error covariance
-    /* Step 7 */
-    P00_tempz = Pz[0][0];
-    P01_tempz = Pz[0][1];
-
-    Pz[0][0] -= Kz[0] * P00_tempz;
-    Pz[0][1] -= Kz[0] * P01_tempz;
-    Pz[1][0] -= Kz[1] * P00_tempz;
-    Pz[1][1] -= Kz[1] * P01_tempz;
-
-    return anglez;
-};
-//void kalman(float KalmanState,float KalmanUncer,float KalmanInput, float KalmanMeasure){
-//	KalmanState = KalmanState +0.007*KalmanInput;
-//	KalmanUncer = KalmanUncer +0.007*0.007*4*4;
-//	float KalmanGain = KalmanUncer*1/(1*KalmanUncer+3*3);
-//	KalmanState = KalmanState + KalmanGain*(KalmanMeasure-KalmanState);
-//	KalmanUncer = (1-KalmanGain)*KalmanUncer;
-//	KalmanOut[0]=KalmanState;
-//	KalmanOut[1]=KalmanUncer;
-//}
-
+void reset_pid(void) {
+  PrevErrorRateRoll=0; PrevErrorRatePitch=0; PrevErrorRateYaw=0;
+  PrevItermRateRoll=0; PrevItermRatePitch=0; PrevItermRateYaw=0;
+  PrevErrorAngleRoll=0; PrevErrorAnglePitch=0;
+  PrevItermAngleRoll=0; PrevItermAnglePitch=0;
+}
 
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 	if(GPIO_Pin == GPIO_PIN_11){
@@ -380,13 +340,49 @@ void gyro_signalen(void) {
 //    acc_x -= acc_roll_cal_value;                               //Subtact the manual accelerometer roll calibration value.
 //  }
 
-    gyro_x = mpu.g[0] - 2.57;                                  //Subtact the manual gyro roll calibration value.
-    gyro_y = mpu.g[1] + 2.1;                                //Subtact the manual gyro pitch calibration value.
-    gyro_z = mpu.g[2] - 0.035;                                    //Subtact the manual gyro yaw calibration value.
+    gyro_x = (mpu.g[0] - 2.57);                                  //Subtact the manual gyro roll calibration value.
+    gyro_y = (mpu.g[1] + 2.1);                                //Subtact the manual gyro pitch calibration value.
+    gyro_z = (mpu.g[2] - 0.035);                                    //Subtact the manual gyro yaw calibration value.
+    AngleRoll = (mpu.rpy[0] + 0.38);
+    AnglePitch = -(mpu.rpy[1] + 1.57);
 
 	}
 	else HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
 }
+//void calculate_pid(void) {
+//   pid_error_temp = gyro_roll_input - pid_roll_setpoint;
+//  pid_i_mem_roll += pid_i_gain_roll * pid_error_temp;
+//  if (pid_i_mem_roll > pid_max_roll)pid_i_mem_roll = pid_max_roll;
+//  else if (pid_i_mem_roll < pid_max_roll * -1)pid_i_mem_roll = pid_max_roll * -1;
+//
+//  pid_roll_output = pid_p_gain_roll * pid_error_temp + pid_i_mem_roll + pid_d_gain_roll * (pid_error_temp - pid_last_roll_d_error);
+//  if (pid_roll_output > pid_max_roll)pid_roll_output = pid_max_roll;
+//  else if (pid_roll_output < pid_max_roll * -1)pid_roll_output = pid_max_roll * -1;
+//
+//  pid_last_roll_d_error = pid_error_temp;
+//
+//  //Pitch calculations
+//  pid_error_temp = gyro_pitch_input - pid_pitch_setpoint;
+//  pid_i_mem_pitch += pid_i_gain_pitch * pid_error_temp;
+//  if (pid_i_mem_pitch > pid_max_pitch)pid_i_mem_pitch = pid_max_pitch;
+//  else if (pid_i_mem_pitch < pid_max_pitch * -1)pid_i_mem_pitch = pid_max_pitch * -1;
+//
+//  pid_pitch_output = pid_p_gain_pitch * pid_error_temp + pid_i_mem_pitch + pid_d_gain_pitch * (pid_error_temp - pid_last_pitch_d_error);
+//  if (pid_pitch_output > pid_max_pitch)pid_pitch_output = pid_max_pitch;
+//  else if (pid_pitch_output < pid_max_pitch * -1)pid_pitch_output = pid_max_pitch * -1;
+//
+//  pid_last_pitch_d_error = pid_error_temp;
+//
+//  //Yaw calculations
+//  pid_error_temp = gyro_yaw_input - pid_yaw_setpoint;
+//  pid_i_mem_yaw += pid_i_gain_yaw * pid_error_temp;
+//  if (pid_i_mem_yaw > pid_max_yaw)pid_i_mem_yaw = pid_max_yaw;
+//  else if (pid_i_mem_yaw < pid_max_yaw * -1)pid_i_mem_yaw = pid_max_yaw * -1;
+//
+//  pid_yaw_output = pid_p_gain_yaw * pid_error_temp + pid_i_mem_yaw + pid_d_gain_yaw * (pid_error_temp - pid_last_yaw_d_error);
+//  if (pid_yaw_output > pid_max_yaw)pid_yaw_output = pid_max_yaw;
+//  else if (pid_yaw_output < pid_max_yaw * -1)pid_yaw_output = pid_max_yaw * -1;
+//}
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -499,7 +495,7 @@ int main(void)
 //	 		 			  gyro_z = mpu.g[2]-(-0.15);
 	 	gyro_pitch_input 	= ( gyro_pitch_input * 0.7 ) + (float)( gyro_y  * 0.3);
 	 	gyro_roll_input 	= ( gyro_roll_input * 0.7 ) + (float)( gyro_x  * 0.3);
-	 	gyro_yaw_input 	= ( gyro_yaw_input * 0.7 ) + (float)( -gyro_z  * 0.3);
+	 	gyro_yaw_input 	= ( gyro_yaw_input * 0.7 ) + (float)( gyro_z  * 0.3);
 
 	 	//Gyro angle calculations
 	 	  //0.0000611 = 1 / (250Hz / 65.5)
@@ -536,166 +532,180 @@ int main(void)
 //	 	 angle_pitch_acc_1 -= 0.57;		// -0.08
 //	 	 angle_roll_acc_1 -= -0.427;		// -1
 //
-	 	angle_pitch_acc = Kalman_getAngle_pitch((-(mpu.rpy[1] + 1.57)), mpu.g[1], 0.006);//(-(mpu.rpy[1] + 1.42));
-	 	angle_roll_acc = Kalman_getAngle_roll((mpu.rpy[0] + 0.38), mpu.g[0], 0.006);//(mpu.rpy[0] + 0.38);
+	 	//angle_pitch_acc = Kalman_getAngle_pitch((-(mpu.rpy[1] + 1.57)), mpu.g[1], 0.006);//(-(mpu.rpy[1] + 1.42));
+	 	//angle_roll_acc = Kalman_getAngle_roll((mpu.rpy[0] + 0.38), mpu.g[0], 0.006);//(mpu.rpy[0] + 0.38);
 
-	 	if ( set_gyro_angle ) {
-	 		angle_pitch = angle_pitch * 0.8 + angle_pitch_acc * 0.2;
-	 		angle_roll = angle_roll * 0.8 + angle_roll_acc * 0.2;
-	 		//angle_yaw = angle_yaw*0.996 + angle_roll_acc * 0.004;
+	 		kalman_1d(KalmanAngleRoll, KalmanUncertaintyAngleRoll, gyro_x, AngleRoll);
+	 		KalmanAngleRoll=Kalman1DOutput[0]; KalmanUncertaintyAngleRoll=Kalman1DOutput[1];
+	 		kalman_1d(KalmanAnglePitch, KalmanUncertaintyAnglePitch, gyro_y, AnglePitch);
+	 		KalmanAnglePitch=Kalman1DOutput[0]; KalmanUncertaintyAnglePitch=Kalman1DOutput[1];
+	 		DesiredAngleRoll=0.10*(receiver_input_channel_2-1500);
+	 		DesiredAnglePitch=0.10*(receiver_input_channel_3-1500);
+	 		DesiredRateYaw=0.15*(receiver_input_channel_4-1500);
+	 		ErrorAngleRoll=DesiredAngleRoll-KalmanAngleRoll;
+	 		ErrorAnglePitch=DesiredAnglePitch-KalmanAnglePitch;
+	 		pid_equation(ErrorAngleRoll, PAngleRoll, IAngleRoll, DAngleRoll, PrevErrorAngleRoll, PrevItermAngleRoll);
+	 		DesiredRateRoll=PIDReturn[0];
+	 		PrevErrorAngleRoll=PIDReturn[1];
+	 		PrevItermAngleRoll=PIDReturn[2];
+	 		pid_equation(ErrorAnglePitch, PAnglePitch, IAnglePitch, DAnglePitch, PrevErrorAnglePitch, PrevItermAnglePitch);
+	 		DesiredRatePitch=PIDReturn[0];
+	 		PrevErrorAnglePitch=PIDReturn[1];
+	 		PrevItermAnglePitch=PIDReturn[2];
 
-	 	}
-	 	else{
-	 		angle_pitch = (-(mpu.rpy[1] + 1.57));
-	 		angle_roll = (mpu.rpy[0] + 0.38);
-	 		//angle_yaw = 0;
-	 		set_gyro_angle = true;
-	 	}
-	 		  angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;
-	 		  angle_roll_output = angle_roll_output * 0.9 + angle_roll * 0.1;
-	 		  //angle_yaw_output = angle_yaw_output * 0.9 + angle_yaw * 0.1;
+	 		  ErrorRateRoll=DesiredRateRoll-gyro_roll_input;
+	 		  ErrorRatePitch=DesiredRatePitch-gyro_pitch_input;
+	 		  ErrorRateYaw=DesiredRateYaw-gyro_yaw_input;
 
-	 		  pitch_level_adjust = angle_pitch_output * 15;
-	 		  roll_level_adjust =  angle_roll_output * 15;
-
-	 		  if ( !auto_level ){
-	 			  pitch_level_adjust =0;
-	 			  roll_level_adjust =0;
-	 		  }
-
-
-	 		  if ( receiver_input_channel_1 < 1050 && receiver_input_channel_4 < 1050 ) start =1;
-
-	 		  if ( start == 1 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1450 ){
-	 			  start = 2;
-	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 1);
-
-	 			  pid_i_mem_roll = 0;
-	 			  pid_last_roll_d_error = 0;
-	 			  pid_i_mem_roll_last = 0;
-
-	 			  pid_i_mem_pitch = 0;
-	 			  pid_last_pitch_d_eroor = 0;
-	 			  pid_i_mem_pitch_last = 0;
-
-	 			  pid_i_mem_yaw = 0;
-	 			  pid_last_yaw_d_error = 0;
-	 			  pid_i_mem_yaw_last = 0;
-	 		  }
-
-	 		  if ( start == 2 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1950 ){
-	 			  start =0;
-	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 0);
-	 		  }
-
-	 		  if ( receiver_input_channel_5 > 1500 ) turning_speed = 7;
-	 		  else turning_speed = 5;
-
-
-	 		  pid_roll_setpoint =0;
-	 		  if ( receiver_input_channel_2 > 1508 ) pid_roll_setpoint = (receiver_input_channel_2 - 1508);
-	 		  else if ( receiver_input_channel_2  < 1492 ) pid_roll_setpoint = ( receiver_input_channel_2  - 1492 );
-
-	 		  pid_roll_setpoint -= roll_level_adjust;
-	 		  pid_roll_setpoint /= turning_speed;
-
-	 		  pid_pitch_setpoint =0;
-	 		  if ( receiver_input_channel_3 > 1508 ) pid_pitch_setpoint = ( receiver_input_channel_3 - 1508 );
-	 		  else if ( receiver_input_channel_3 < 1492 ) pid_pitch_setpoint = ( receiver_input_channel_3 - 1492 );
-
-	 		  pid_pitch_setpoint -= pitch_level_adjust;
-	 		  pid_pitch_setpoint /= turning_speed;
+	 		pid_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
+	 		       InputRoll=PIDReturn[0];
+	 		       PrevErrorRateRoll=PIDReturn[1];
+	 		       PrevItermRateRoll=PIDReturn[2];
+	 		pid_equation(ErrorRatePitch, PRatePitch,IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
+	 		       InputPitch=PIDReturn[0];
+	 		       PrevErrorRatePitch=PIDReturn[1];
+	 		       PrevItermRatePitch=PIDReturn[2];
+	 		pid_equation(ErrorRateYaw, PRateYaw,IRateYaw, DRateYaw, PrevErrorRateYaw, PrevItermRateYaw);
+	 		       InputYaw=PIDReturn[0];
+	 		       PrevErrorRateYaw=PIDReturn[1];
+	 		       PrevItermRateYaw=PIDReturn[2];
+//	 	if ( set_gyro_angle ) {
+//	 		angle_pitch = angle_pitch * 0.8 + angle_pitch_acc * 0.2;
+//	 		angle_roll = angle_roll * 0.8 + angle_roll_acc * 0.2;
+//	 		//angle_yaw = angle_yaw*0.996 + angle_roll_acc * 0.004;
+//
+//	 	}
+//	 	else{
+//	 		angle_pitch = (-(mpu.rpy[1] + 0.78));
+//	 		angle_roll = (mpu.rpy[0] -0.64);
+//	 		//angle_yaw = 0;
+//	 		set_gyro_angle = true;
+//	 	}
+//	 		  angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;
+//	 		  angle_roll_output = angle_roll_output * 0.9 + angle_roll * 0.1;
+//	 		  //angle_yaw_output = angle_yaw_output * 0.9 + angle_yaw * 0.1;
+//
+//	 		  pitch_level_adjust = angle_pitch_output * 15;
+//	 		  roll_level_adjust =  angle_roll_output * 15;
+//
+//	 		  if ( !auto_level ){
+//	 			  pitch_level_adjust =0;
+//	 			  roll_level_adjust =0;
+//	 		  }
 
 
-	 		  pid_yaw_setpoint =0;
-	 		  if ( receiver_input_channel_1 > 1050 ){
-	 			  if ( receiver_input_channel_4 > 1508 ) pid_yaw_setpoint = ( receiver_input_channel_4 - 1508 ) / turning_speed;
-	 			  else if ( receiver_input_channel_4 < 1492 ) pid_yaw_setpoint = ( receiver_input_channel_4 - 1492 ) / turning_speed;
-	 		  }
+//	 		  if ( receiver_input_channel_1 < 1050 && receiver_input_channel_4 < 1050 ) start =1;
+//
+//	 		  if ( start == 1 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1450 ){
+//	 			  start = 2;
+//	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 1);
+//
+//	 			  pid_i_mem_roll = 0;
+//	 			  pid_last_roll_d_error = 0;
+//	 			  pid_i_mem_roll_last = 0;
+//
+//	 			  pid_i_mem_pitch = 0;
+//	 			  pid_last_pitch_d_error = 0;
+//	 			  pid_i_mem_pitch_last = 0;
+//
+//	 			  pid_i_mem_yaw = 0;
+//	 			  pid_last_yaw_d_error = 0;
+//	 			  pid_i_mem_yaw_last = 0;
+//	 		  }
+//
+//	 		  if ( start == 2 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1950 ){
+//	 			  start =0;
+//	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 0);
+//	 		  }
+//
+//	 		  if ( receiver_input_channel_5 > 1500 ) turning_speed = 7;
+//	 		  else turning_speed = 5;
+//
 
+//	 		  pid_roll_setpoint =0;
+//	 		  if ( receiver_input_channel_2 > 1508 ) pid_roll_setpoint = (receiver_input_channel_2 - 1508);
+//	 		  else if ( receiver_input_channel_2  < 1492 ) pid_roll_setpoint = ( receiver_input_channel_2  - 1492 );
+//
+//	 		  //pid_roll_setpoint -= roll_level_adjust;
+//	 		  pid_roll_setpoint /= turning_speed;
+//
+//	 		  pid_pitch_setpoint =0;
+//	 		  if ( receiver_input_channel_3 > 1508 ) pid_pitch_setpoint = ( receiver_input_channel_3 - 1508 );
+//	 		  else if ( receiver_input_channel_3 < 1492 ) pid_pitch_setpoint = ( receiver_input_channel_3 - 1492 );
+//
+//	 		  //pid_pitch_setpoint -= pitch_level_adjust;
+//	 		  pid_pitch_setpoint /= turning_speed;
+//
+//
+//	 		  pid_yaw_setpoint =0;
+//	 		  if ( receiver_input_channel_1 > 1050 ){
+//	 			  if ( receiver_input_channel_4 > 1508 ) pid_yaw_setpoint = ( receiver_input_channel_4 - 1508 ) / turning_speed;
+//	 			  else if ( receiver_input_channel_4 < 1492 ) pid_yaw_setpoint = ( receiver_input_channel_4 - 1492 ) / turning_speed;
+//	 		  }
 
+	 		//  calculate_pid();
 	 		  //roll calculation
-	 		  pid_error_temp = -gyro_roll_input + pid_roll_setpoint;
-	 		  pid_i_mem_roll =  pid_i_mem_roll_last + 0.5 * pid_i_gain_roll * dt * (pid_error_temp +pid_last_roll_d_error) ;
 
-	 		  if ( pid_i_mem_roll > pid_max_roll ) pid_i_mem_roll = pid_max_roll;
-	 		  else if ( pid_i_mem_roll < pid_max_roll * -1 ) pid_i_mem_roll = pid_max_roll * -1;
-
-	 		  pid_roll_output = ( pid_p_gain_roll * (pid_error_temp)) + pid_i_mem_roll + ( pid_d_gain_roll * (( pid_error_temp - pid_last_roll_d_error) / dt));
-
-	 		  if ( pid_roll_output > pid_max_roll ) pid_roll_output = pid_max_roll;
-	 		  else if ( pid_roll_output < pid_max_roll * -1) pid_roll_output = pid_max_roll * -1;
-
-	 		  pid_last_roll_d_error = pid_error_temp;
-	 		  pid_i_mem_roll_last = pid_i_mem_roll;
-
-	 		  // pitch calculation
-	 		  pid_error_temp = -gyro_pitch_input + pid_pitch_setpoint;
-	 		  pid_i_mem_pitch = pid_i_mem_pitch_last + 0.5*pid_i_gain_pitch*dt*(pid_error_temp+pid_last_pitch_d_eroor);
-
-	 		  if ( pid_i_mem_pitch > pid_max_pitch ) pid_i_mem_pitch = pid_max_pitch;
-	 		  else if ( pid_i_mem_pitch < pid_max_pitch * -1 ) pid_i_mem_pitch = pid_max_pitch * -1;
-
-	 		  pid_pitch_output = ( pid_p_gain_pitch * (pid_error_temp) ) + pid_i_mem_pitch + ( pid_d_gain_pitch * (( pid_error_temp - pid_last_pitch_d_eroor)/dt));
-
-	 		  if ( pid_pitch_output > pid_max_pitch ) pid_pitch_output = pid_max_pitch;
-	 		  else if ( pid_pitch_output < pid_max_pitch * -1 ) pid_pitch_output = pid_max_pitch * -1;
-
-	 		  pid_last_pitch_d_eroor = pid_error_temp;
-	 		  pid_i_mem_pitch_last = pid_i_mem_pitch;
-
-	 		  // yaw calculation
-	 		  pid_error_temp = -gyro_yaw_input + pid_yaw_setpoint;
-	 		  pid_i_mem_yaw  = pid_i_mem_yaw_last + 0.5 * pid_i_gain_yaw * dt * (pid_error_temp+pid_last_yaw_d_error);
-
-	 		  if ( pid_i_mem_yaw > pid_max_yaw ) pid_i_mem_yaw = pid_max_yaw;
-	 		  else if ( pid_i_mem_yaw < pid_max_yaw * -1 ) pid_i_mem_yaw = pid_max_yaw * -1;
-
-	 		  pid_yaw_output = ( pid_p_gain_yaw * (pid_error_temp) ) + pid_i_mem_yaw + ( pid_d_gain_yaw * (( pid_error_temp - pid_last_yaw_d_error )/dt));
-
-	 		  if ( pid_yaw_output > pid_max_yaw ) pid_yaw_output = pid_max_yaw;
-	 		  else if ( pid_yaw_output < pid_max_yaw * -1 ) pid_yaw_output = pid_max_yaw * -1;
-
-	 		  pid_last_yaw_d_error = pid_error_temp;
-	 		  pid_i_mem_yaw_last = pid_i_mem_pitch;
 
 
 
 	 		  throttle = receiver_input_channel_1;
 
+	 		 if (InputThrottle > 1800) InputThrottle = 1800;
+	 		   esc1= 1*(throttle-InputRoll-InputPitch-InputYaw);
+	 		   esc2= 1*(throttle-InputRoll+InputPitch+InputYaw);
+	 		   esc3= 1*(throttle+InputRoll+InputPitch-InputYaw);
+	 		   esc4= 1*(throttle+InputRoll-InputPitch+InputYaw);
+	 		   if (esc1 > 2000)esc1 = 1999;
+	 		   if (esc2 > 2000)esc2 = 1999;
+	 		   if (esc3 > 2000)esc3 = 1999;
+	 		   if (esc4 > 2000)esc4 = 1999;
+	 		   int ThrottleIdle=1100;
+	 		   if (esc1 < ThrottleIdle) esc1 = ThrottleIdle;
+	 		   if (esc2 < ThrottleIdle) esc2 = ThrottleIdle;
+	 		   if (esc3 < ThrottleIdle) esc3 = ThrottleIdle;
+	 		   if (esc4 < ThrottleIdle) esc4 = ThrottleIdle;
+	 		   int ThrottleCutOff=1000;
+	 		   if (throttle<1050) {
+	 		     esc1=ThrottleCutOff;
+	 		     esc2=ThrottleCutOff;
+	 		     esc3=ThrottleCutOff;
+	 		     esc4=ThrottleCutOff;
+	 		     reset_pid();
+	 		   }
 
-	 		  if ( start == 2 && throttle > 1050 ){
-	 			  if ( throttle > 1800 ) throttle = 1800;
+//	 		  if ( start == 2 && throttle > 1050 ){
+//	 			  if ( throttle > 1800 ) throttle = 1800;
+//
+//	 			  esc_1 = throttle - pid_pitch_output - pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 1 (front-right - CCW).
+//	 			  esc_2 = throttle + pid_pitch_output - pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 2 (rear-right - CW).
+//	 			  esc_3 = throttle + pid_pitch_output + pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 3 (rear-left - CCW).
+//	 			  esc_4 = throttle - pid_pitch_output + pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 4 (front-left - CW).
+//
+//	 			  if ( esc_1 < min_throthle ) esc_1 = min_throthle;
+//	 			  if ( esc_2 < min_throthle ) esc_2 = min_throthle;
+//	 			  if ( esc_3 < min_throthle ) esc_3 = min_throthle;
+//	 			  if ( esc_4 < min_throthle ) esc_4 = min_throthle;
+//
+//	 			  if ( esc_1 > max_throthle ) esc_1 = max_throthle;
+//	 			  if ( esc_2 > max_throthle ) esc_2 = max_throthle;
+//	 			  if ( esc_3 > max_throthle ) esc_3 = max_throthle;
+//	 			  if ( esc_4 > max_throthle ) esc_4 = max_throthle;
+//
+//
+//	 		  }else{
+//	 			  esc_1 = disable_motor;
+//	 			  esc_2 = disable_motor;
+//	 			  esc_3 = disable_motor;
+//	 			  esc_4 = disable_motor;
+//	 		  }
+//
+	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,esc1);
+	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,esc2);
+	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_3,esc3);
+	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_4,esc4);
 
-	 			  esc_1 = throttle - pid_pitch_output - pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 1 (front-right - CCW).
-	 			  esc_2 = throttle + pid_pitch_output - pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 2 (rear-right - CW).
-	 			  esc_3 = throttle + pid_pitch_output + pid_roll_output - pid_yaw_output;        //Calculate the pulse for esc 3 (rear-left - CCW).
-	 			  esc_4 = throttle - pid_pitch_output + pid_roll_output + pid_yaw_output;        //Calculate the pulse for esc 4 (front-left - CW).
-
-	 			  if ( esc_1 < min_throthle ) esc_1 = min_throthle;
-	 			  if ( esc_2 < min_throthle ) esc_2 = min_throthle;
-	 			  if ( esc_3 < min_throthle ) esc_3 = min_throthle;
-	 			  if ( esc_4 < min_throthle ) esc_4 = min_throthle;
-
-	 			  if ( esc_1 > max_throthle ) esc_1 = max_throthle;
-	 			  if ( esc_2 > max_throthle ) esc_2 = max_throthle;
-	 			  if ( esc_3 > max_throthle ) esc_3 = max_throthle;
-	 			  if ( esc_4 > max_throthle ) esc_4 = max_throthle;
-
-
-	 		  }else{
-	 			  esc_1 = disable_motor;
-	 			  esc_2 = disable_motor;
-	 			  esc_3 = disable_motor;
-	 			  esc_4 = disable_motor;
-	 		  }
-
-	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,esc_1);
-	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,esc_2);
-	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_3,esc_3);
-	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_4,esc_4);
-
-	 		  if (abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) > 7000 ){
+	 		  if (abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) > 6000 ){
 	 			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);
 	 		  }
 
