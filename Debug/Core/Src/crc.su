@@ -1,0 +1,2 @@
+../Core/Src/crc.c:45:10:crc16_buff	24	static
+../Core/Src/crc.c:54:10:crc16_floating	16	static

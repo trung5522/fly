@@ -27,12 +27,15 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
+#include "crc.h"
+#include "frame_uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 bool set_gyro_angle = false;
 volatile long ch[8];
+//ch[2]=1000;
 volatile long tick;
 volatile uint8_t pulse;
 float dt =0.006;
@@ -53,24 +56,24 @@ float PrevErrorRateRoll, PrevErrorRatePitch, PrevErrorRateYaw;
 float PrevItermRateRoll, PrevItermRatePitch, PrevItermRateYaw;
 ////pid
 float PIDReturn[]={0, 0, 0};
-float PRateRoll=0.6;
-float PRatePitch=0.6;
+float PRateRoll=1.0;
+float PRatePitch=1.0;
 //PRatePitch=PRateRoll;
-float PRateYaw=2;
-float IRateRoll=3.5;
-float IRatePitch=3.5;
-float IRateYaw=12;
-float DRateRoll=0.03;
-float DRatePitch=0.03;
-float DRateYaw=0;
+float PRateYaw=0;
+float IRateRoll=0.001;
+float IRatePitch=0.001;
+float IRateYaw=0.00;
+float DRateRoll=0.12;
+float DRatePitch=0.12;
+float DRateYaw=0.0;
 
 float DesiredRateRoll, DesiredRatePitch,DesiredRateYaw;
 float ErrorAngleRoll, ErrorAnglePitch;
 float PrevErrorAngleRoll, PrevErrorAnglePitch;
 float PrevItermAngleRoll, PrevItermAnglePitch;
-float PAngleRoll=2; float PAnglePitch=2;
-float IAngleRoll=0; float IAnglePitch=0;
-float DAngleRoll=0; float DAnglePitch=0;
+float PAngleRoll=4; float PAnglePitch=4;
+float IAngleRoll=0.001; float IAnglePitch=0.001;
+float DAngleRoll=0.2; float DAnglePitch=0.2;
 
 
 ///////
@@ -125,6 +128,13 @@ float angle_yaw_output;
 float gyro_roll_input;
 float gyro_pitch_input;
 float gyro_yaw_input;
+
+
+// qt_tune qt_data;
+uint8_t f_trans[FRAME_DATA_TX];
+uint8_t f_dest_trans[FRAME_DATA_TX_HANDLE];
+uint16_t f_dest_len_t = 0;
+volatile float q_Roll_angle = 0;
 
 //float pid_roll_setpoint;
 //float pid_pitch_setpoint;
@@ -229,6 +239,8 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
+UART_HandleTypeDef huart1;
+
 /* USER CODE BEGIN PV */
 void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput, float KalmanMeasurement) {
   KalmanState=KalmanState+0.006*KalmanInput;
@@ -262,12 +274,14 @@ void reset_pid(void) {
 
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 	if(GPIO_Pin == GPIO_PIN_11){
+
 		tick = __HAL_TIM_GET_COUNTER(&htim4);
 		__HAL_TIM_SET_COUNTER(&htim4,0);
 		if(tick < 2008){
+
 			if(pulse==2){
-//				if(tick<1000) ch[pulse]=ch[pulse];
-//				else
+				if(tick<1000 || abs(tick - ch[pulse])>250) ch[pulse]=ch[pulse];
+				else
 					ch[pulse]= tick;
 			}
 			else if((pulse ==4) || (pulse ==5)){
@@ -276,9 +290,13 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 			else{
 //				if(tick<1200 || tick >1700 ) ch[pulse]=ch[pulse];
 //				else
+				if(tick<1000 || abs(tick - ch[pulse])>250) ch[pulse]=ch[pulse];
+				else
 					ch[pulse]= mapValue(tick, 1200, 1700, 1000, 2000);
 				//ch[pulse]= tick;
 			}
+
+			//ch[pulse]= tick;
 			pulse++;
 		}
 		else{
@@ -392,6 +410,7 @@ static void MX_TIM4_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -424,16 +443,15 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-
   MX_TIM4_Init();
   MX_TIM3_Init();
   MX_I2C1_Init();
   MX_TIM2_Init();
   MX_GPIO_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim4);
   HAL_TIM_Base_Start(&htim2);
@@ -467,6 +485,10 @@ int main(void)
           HAL_Delay(2000);
           calibrate_gyro();
           loop_timer = __HAL_TIM_GET_COUNTER(&htim2);
+          ch[2]=1000;
+          ch[0]=1500;
+          ch[1]=1500;
+          ch[3]=1500;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -478,9 +500,9 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	//uint32_t dau = HAL_GetTick();
  	  	  receiver_input_channel_1 = ch[2]; //thr
-	 	  receiver_input_channel_2 = ch[0]; //roll
-	 	  receiver_input_channel_3 = ch[1];	//pitch
-	 	  receiver_input_channel_4 = ch[3]; //yaw
+	 	  receiver_input_channel_2 = 1500;//ch[0]; //roll
+	 	  receiver_input_channel_3 = 1500;//ch[1];	//pitch
+	 	  receiver_input_channel_4 = 1500;//ch[3]; //yaw
 	 	  receiver_input_channel_5 = ch[4];	 //sw left
 	 	  receiver_input_channel_6 = ch[5]; //sw right
 //	 	 if(updateMPU(&mpu)==1){
@@ -537,11 +559,14 @@ int main(void)
 
 	 		kalman_1d(KalmanAngleRoll, KalmanUncertaintyAngleRoll, gyro_x, AngleRoll);
 	 		KalmanAngleRoll=Kalman1DOutput[0]; KalmanUncertaintyAngleRoll=Kalman1DOutput[1];
+
 	 		kalman_1d(KalmanAnglePitch, KalmanUncertaintyAnglePitch, gyro_y, AnglePitch);
 	 		KalmanAnglePitch=Kalman1DOutput[0]; KalmanUncertaintyAnglePitch=Kalman1DOutput[1];
+
 	 		DesiredAngleRoll=0.10*(receiver_input_channel_2-1500);
 	 		DesiredAnglePitch=0.10*(receiver_input_channel_3-1500);
 	 		DesiredRateYaw=0.15*(receiver_input_channel_4-1500);
+
 	 		ErrorAngleRoll=DesiredAngleRoll-KalmanAngleRoll;
 	 		ErrorAnglePitch=DesiredAnglePitch-KalmanAnglePitch;
 	 		pid_equation(ErrorAngleRoll, PAngleRoll, IAngleRoll, DAngleRoll, PrevErrorAngleRoll, PrevItermAngleRoll);
@@ -645,8 +670,11 @@ int main(void)
 
 	 		//  calculate_pid();
 	 		  //roll calculation
+	 		     // q_Roll_angle = AngleRoll + 2000;
 
-
+//	 		      sprintf((char *)f_trans, "%d%d", (uint16_t)(2100+KalmanAngleRoll), (uint16_t)q_Roll_angle);
+//	 		      SendFrameData(f_trans, FRAME_DATA_TX, f_dest_trans, &f_dest_len_t);
+//	 		      HAL_UART_Transmit(&huart1, f_dest_trans, f_dest_len_t, 1000);
 
 
 	 		  throttle = receiver_input_channel_1;
@@ -943,6 +971,39 @@ static void MX_TIM4_Init(void)
   /* USER CODE BEGIN TIM4_Init 2 */
 
   /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
