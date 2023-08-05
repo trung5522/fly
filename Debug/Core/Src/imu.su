@@ -74,10 +74,10 @@
 ../Core/Src/imu.c:658:6:getGres	16	static
 ../Core/Src/imu.c:680:6:getAres	16	static
 ../Core/Src/imu.c:702:6:readByte	32	static
-../Core/Src/imu.c:715:6:readBytes	48	static
-../Core/Src/imu.c:730:6:writeByte	32	static
-../Core/Src/imu.c:738:6:MPU9250SetDefault	16	static
-../Core/Src/imu.c:800:6:update_madgwick	56	static
-../Core/Src/imu.c:809:6:madgwick	440	static
-../Core/Src/imu.c:912:6:MPU9250SelfTest	176	static
-../Core/Src/imu.c:1022:6:calibrateMPU9250	136	static
+../Core/Src/imu.c:716:6:readBytes	48	static
+../Core/Src/imu.c:733:6:writeByte	32	static
+../Core/Src/imu.c:742:6:MPU9250SetDefault	16	static
+../Core/Src/imu.c:804:6:update_madgwick	56	static
+../Core/Src/imu.c:813:6:madgwick	440	static
+../Core/Src/imu.c:916:6:MPU9250SelfTest	176	static
+../Core/Src/imu.c:1026:6:calibrateMPU9250	136	static

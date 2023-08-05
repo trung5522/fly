@@ -33,12 +33,30 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define MPU9250_CONFIG		0X1A
+#define MPU9250_ADDR		0xD0
+#define WHO_AM_I_REG 		0x75
+#define ACCEL_CONFIG_2		0X1D
+
+uint8_t GYRO_DLPF_CFG		= 0X02; 	// Set digital low-pass filter 0x02 to get bandwidth 92Hz
+uint8_t ACCEL_DLPF_CFG		= 0X02;		// Set digital low-pass filter 0x02 to get bandwidth 99Hz
+
+uint8_t GYRO_FS				= 0x08;		// +500DPS
+uint8_t ACCEL_FS			= 0X10;		// +-8G
+
+uint8_t PWR_CONIG			= 0X00;		// Auto select the best available clock source
+uint8_t PWR_CONIG_2			= 0X01;
+uint8_t SMPLRT_CONFIG		= 0X07;		// Sample_Rate = Internal_Sample_Rate/(1+SMPLRT_CONFIG)
+										// Sample_Rate = 8Khz/(1+8) = 1Khz
+uint8_t MPU9250_RESPONSE_OK	= 0x71;		// Check WHO_AM_I if it is OK it will 0x71 or 113
+uint8_t MPU9250_Check		= 0;
+
 bool set_gyro_angle = false;
 volatile long ch[8];
 //ch[2]=1000;
 volatile long tick;
 volatile uint8_t pulse;
-float dt =0.006;
+float dt =0.004;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -59,7 +77,7 @@ float PIDReturn[]={0, 0, 0};
 float PRateRoll=1.0;
 float PRatePitch=1.0;
 //PRatePitch=PRateRoll;
-float PRateYaw=0;
+float PRateYaw=1;
 float IRateRoll=0.001;
 float IRatePitch=0.001;
 float IRateYaw=0.00;
@@ -71,9 +89,9 @@ float DesiredRateRoll, DesiredRatePitch,DesiredRateYaw;
 float ErrorAngleRoll, ErrorAnglePitch;
 float PrevErrorAngleRoll, PrevErrorAnglePitch;
 float PrevItermAngleRoll, PrevItermAnglePitch;
-float PAngleRoll=4; float PAnglePitch=4;
+float PAngleRoll=1.5; float PAnglePitch=1.5;
 float IAngleRoll=0.001; float IAnglePitch=0.001;
-float DAngleRoll=0.2; float DAnglePitch=0.2;
+float DAngleRoll=0.0; float DAnglePitch=0.0;
 
 
 ///////
@@ -96,10 +114,13 @@ long gyro_z_cal;
 
 uint16_t loop_timer;
 
-int16_t gyro_x;
-int16_t gyro_y;
-int16_t gyro_z;
-
+float acc_x;
+float acc_y;
+float acc_z;
+float gyro_x;
+float gyro_y;
+float gyro_z;
+float AccX, AccY, AccZ;
 
 //long acc_x;
 //long acc_y;
@@ -230,6 +251,7 @@ int esc4;
 /* USER CODE BEGIN PM */
 int mapValue(int value, int inMin, int inMax, int outMin, int outMax);
 void gyro_signalen(void);
+void gyro_get_data();
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -244,7 +266,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput, float KalmanMeasurement) {
   KalmanState=KalmanState+0.006*KalmanInput;
-  KalmanUncertainty=KalmanUncertainty + 0.006 * 0.006 * 4 * 4;
+  KalmanUncertainty=KalmanUncertainty + 0.004 * 0.004 * 4 * 4;
   float KalmanGain=KalmanUncertainty * 1/(1*KalmanUncertainty + 3 * 3);
   KalmanState=KalmanState+KalmanGain * (KalmanMeasurement-KalmanState);
   KalmanUncertainty=(1-KalmanGain) * KalmanUncertainty;
@@ -253,10 +275,10 @@ void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput, fl
 }
 void pid_equation(float Error, float P , float I, float D, float PrevError, float PrevIterm) {
   float Pterm=P*Error;
-  float Iterm=PrevIterm+I*(Error+PrevError)*0.006/2;
+  float Iterm=PrevIterm+I*(Error+PrevError)*0.004/2;
   if (Iterm > 400) Iterm=400;
   else if (Iterm <-400) Iterm=-400;
-  float Dterm=D*(Error-PrevError)/0.006;
+  float Dterm=D*(Error-PrevError)/0.004;
   float PIDOutput= Pterm+Iterm+Dterm;
   if (PIDOutput>400) PIDOutput=400;
   else if (PIDOutput <-400) PIDOutput=-400;
@@ -280,7 +302,7 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 		if(tick < 2008){
 
 			if(pulse==2){
-				if(tick<1000 || abs(tick - ch[pulse])>250) ch[pulse]=ch[pulse];
+				if(tick<1000 || abs(tick - ch[pulse])>200) ch[pulse]=ch[pulse];
 				else
 					ch[pulse]= tick;
 			}
@@ -290,7 +312,7 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 			else{
 //				if(tick<1200 || tick >1700 ) ch[pulse]=ch[pulse];
 //				else
-				if(tick<1000 || abs(tick - ch[pulse])>250) ch[pulse]=ch[pulse];
+				if(tick<1000 || abs(tick - ch[pulse])>200) ch[pulse]=ch[pulse];
 				else
 					ch[pulse]= mapValue(tick, 1200, 1700, 1000, 2000);
 				//ch[pulse]= tick;
@@ -320,7 +342,8 @@ void calibrate_gyro(void) {
     //Let's take multiple gyro data samples so we can determine the average gyro offset (calibration).
     for (cal_int = 0; cal_int < 2000 ; cal_int ++) {                                  //Take 2000 readings for calibration.
       if (cal_int % 25 == 0) HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);                    //Change the led status every 125 readings to indicate calibration.
-      gyro_signalen();                                                                //Read the gyro output.
+      //gyro_signalen();                                                                //Read the gyro output.
+      gyro_get_data();
       gyro_x_cal += gyro_x;                                                     //Ad roll value to gyro_roll_cal.
       gyro_y_cal += gyro_y;                                                   //Ad pitch value to gyro_pitch_cal.
       gyro_z_cal += gyro_z;                                                       //Ad yaw value to gyro_yaw_cal.
@@ -361,11 +384,83 @@ void gyro_signalen(void) {
     gyro_x = (mpu.g[0] - 2.57);                                  //Subtact the manual gyro roll calibration value.
     gyro_y = (mpu.g[1] + 2.1);                                //Subtact the manual gyro pitch calibration value.
     gyro_z = (mpu.g[2] - 0.035);                                    //Subtact the manual gyro yaw calibration value.
-    AngleRoll = (mpu.rpy[0] + 0.38);
-    AnglePitch = -(mpu.rpy[1] + 1.57);
+    AngleRoll = (mpu.rpy[0] - 0.46);
+    AnglePitch = -(mpu.rpy[1] + 0.52);
 
 	}
 	else HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+}
+
+void gyro_setup(){
+
+	 if (HAL_I2C_Mem_Read (&hi2c1, MPU9250_ADDR,WHO_AM_I_REG,1, &MPU9250_Check, 1, 1000) == HAL_OK ){
+		 if ( MPU9250_Check == MPU9250_RESPONSE_OK ){
+
+//			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, PWR_MGMT_1, 1, &PWR_CONIG, 1, 100);				// Auto select best available clock source
+//			 HAL_Delay(100);
+//			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, PWR_MGMT_1, 1, &PWR_CONIG_2, 1, 100);				// Auto select best available clock source
+//			 HAL_Delay(100);
+			 writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x80); // Write a one to bit 7 reset bit; toggle reset device
+			 HAL_Delay(100); // Delay 100 ms for PLL to get established on x-axis gyro; should check for PLL ready interrupt
+
+			 	// wake up device
+			 writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x00);  // Set clock source to be PLL with x-axis gyroscope reference, bits 2:0 = 001
+			 HAL_Delay(100);
+
+			 	// get stable time source
+			 writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x01);  // Auto select clock source to be PLL gyroscope reference if ready else
+			 HAL_Delay(100);
+			 writeByte(MPU9250_ADDRESS, CONFIG, 0x03);
+
+			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, SMPLRT_DIV, 1, &SMPLRT_CONFIG, 1, 100);			// 1Khz sample rate
+			 HAL_Delay(100);
+			 //
+			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, MPU9250_CONFIG, 1, &GYRO_DLPF_CFG, 1, 100);		// Set digital low-pass filter 0x02 to get bandwidth 92Hz
+			 HAL_Delay(100);
+			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, ACCEL_CONFIG_2, 1, &ACCEL_DLPF_CFG, 1, 100);		// Set digital low-pass filter 0x02 to get bandwidth 99Hz
+
+			 HAL_Delay(100);
+			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, GYRO_CONFIG, 1, &GYRO_FS, 1, 100);					// Set GYRO to full scale +250DPS
+			 HAL_Delay(100);
+			 HAL_I2C_Mem_Write(&hi2c1, MPU9250_ADDR, ACCEL_CONFIG, 1, &ACCEL_FS, 1, 100);				// Set ACCEL to full scale +-2G
+
+
+		 }
+
+	 }
+
+}
+void gyro_get_data(){
+
+//	uint8_t Accel_Val_Raw[6];
+//	HAL_I2C_Mem_Read(&hi2c1, MPU9250_ADDR, ACCEL_XOUT_H, 1, Accel_Val_Raw, 6, 1000);
+//
+//	acc_x = (int16_t) (Accel_Val_Raw[0] << 8 | Accel_Val_Raw [1]);
+//	acc_y = (int16_t) (Accel_Val_Raw[2] << 8 | Accel_Val_Raw [3]);
+//	acc_z = (int16_t) (Accel_Val_Raw[4] << 8 | Accel_Val_Raw [5]);
+//
+//	uint8_t Gyro_Val_Raw[6];
+//	HAL_I2C_Mem_Read(&hi2c1, MPU9250_ADDR, GYRO_XOUT_H, 1, Gyro_Val_Raw, 6, 1000);
+//
+//	gyro_x = (int16_t) (Gyro_Val_Raw[0] << 8 | Gyro_Val_Raw [1]);
+//	gyro_y = (int16_t) (Gyro_Val_Raw[2] << 8 | Gyro_Val_Raw [3]);
+//	gyro_z = (int16_t) (Gyro_Val_Raw[4] << 8 | Gyro_Val_Raw [5]);
+	 update_accel_gyro(&mpu);
+
+	 gyro_x=mpu.g[0];
+	 gyro_y=mpu.g[1];
+	 gyro_z=mpu.g[2];
+
+
+	  AccX=mpu.a[0];
+	  AccY=mpu.a[1];
+	  AccZ=mpu.a[2];
+	  AngleRoll=atan(AccY/sqrt(AccX*AccX+AccZ*AccZ))*1/(3.142/180);
+	  AnglePitch=-atan(AccX/sqrt(AccY*AccY+AccZ*AccZ))*1/(3.142/180);
+	//gyro_x *= -1;
+//	gyro_y *= -1;
+	//gyro_z *= -1;
+
 }
 //void calculate_pid(void) {
 //   pid_error_temp = gyro_roll_input - pid_roll_setpoint;
@@ -446,6 +541,7 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  //MX_GPIO_Init();
   MX_TIM4_Init();
   MX_TIM3_Init();
   MX_I2C1_Init();
@@ -465,14 +561,14 @@ int main(void)
      __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_3,0);
      __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_4,0);
      HAL_Delay(10);
-
+     //gyro_setup();
      MPU9250SetDefault(&mpu);
           while(!(setupMPU(&mpu, MPU9250_ADDRESS)==1)) {
          //	 int i;
          //	 for (i=0;i<50;i++){HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14);}
           }
           HAL_Delay(100);
-
+//
           int i;
           for(i=0;i<100;i++){
                if(updateMPU(&mpu)==1){
@@ -499,22 +595,17 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	//uint32_t dau = HAL_GetTick();
+	  	  gyro_get_data();
+	  	  gyro_x = gyro_x - 2.58;
+	  	  gyro_y = gyro_y + 2.05;
+	  	  gyro_z = gyro_z + 0.2;
  	  	  receiver_input_channel_1 = ch[2]; //thr
 	 	  receiver_input_channel_2 = 1500;//ch[0]; //roll
 	 	  receiver_input_channel_3 = 1500;//ch[1];	//pitch
 	 	  receiver_input_channel_4 = 1500;//ch[3]; //yaw
 	 	  receiver_input_channel_5 = ch[4];	 //sw left
 	 	  receiver_input_channel_6 = ch[5]; //sw right
-//	 	 if(updateMPU(&mpu)==1){
-//	 			  gyro_x = mpu.g[0]-2.53;
-//	 			  gyro_y = mpu.g[1]-(-1.95);
-//	 			  gyro_z = mpu.g[2]-(-0.06);
-//	 			 // HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
-//	 	 }
-	 	gyro_signalen();
-//	 		 			  gyro_x = mpu.g[0]-2.53;
-//	 		 			  gyro_y = mpu.g[1]-(-1.95);
-//	 		 			  gyro_z = mpu.g[2]-(-0.15);
+
 	 	gyro_pitch_input 	= ( gyro_pitch_input * 0.7 ) + (float)( gyro_y  * 0.3);
 	 	gyro_roll_input 	= ( gyro_roll_input * 0.7 ) + (float)( gyro_x  * 0.3);
 	 	gyro_yaw_input 	= ( gyro_yaw_input * 0.7 ) + (float)( gyro_z  * 0.3);
@@ -594,87 +685,6 @@ int main(void)
 	 		       InputYaw=PIDReturn[0];
 	 		       PrevErrorRateYaw=PIDReturn[1];
 	 		       PrevItermRateYaw=PIDReturn[2];
-//	 	if ( set_gyro_angle ) {
-//	 		angle_pitch = angle_pitch * 0.8 + angle_pitch_acc * 0.2;
-//	 		angle_roll = angle_roll * 0.8 + angle_roll_acc * 0.2;
-//	 		//angle_yaw = angle_yaw*0.996 + angle_roll_acc * 0.004;
-//
-//	 	}
-//	 	else{
-//	 		angle_pitch = (-(mpu.rpy[1] + 0.78));
-//	 		angle_roll = (mpu.rpy[0] -0.64);
-//	 		//angle_yaw = 0;
-//	 		set_gyro_angle = true;
-//	 	}
-//	 		  angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;
-//	 		  angle_roll_output = angle_roll_output * 0.9 + angle_roll * 0.1;
-//	 		  //angle_yaw_output = angle_yaw_output * 0.9 + angle_yaw * 0.1;
-//
-//	 		  pitch_level_adjust = angle_pitch_output * 15;
-//	 		  roll_level_adjust =  angle_roll_output * 15;
-//
-//	 		  if ( !auto_level ){
-//	 			  pitch_level_adjust =0;
-//	 			  roll_level_adjust =0;
-//	 		  }
-
-
-//	 		  if ( receiver_input_channel_1 < 1050 && receiver_input_channel_4 < 1050 ) start =1;
-//
-//	 		  if ( start == 1 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1450 ){
-//	 			  start = 2;
-//	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 1);
-//
-//	 			  pid_i_mem_roll = 0;
-//	 			  pid_last_roll_d_error = 0;
-//	 			  pid_i_mem_roll_last = 0;
-//
-//	 			  pid_i_mem_pitch = 0;
-//	 			  pid_last_pitch_d_error = 0;
-//	 			  pid_i_mem_pitch_last = 0;
-//
-//	 			  pid_i_mem_yaw = 0;
-//	 			  pid_last_yaw_d_error = 0;
-//	 			  pid_i_mem_yaw_last = 0;
-//	 		  }
-//
-//	 		  if ( start == 2 && receiver_input_channel_1 < 1050 && receiver_input_channel_4 > 1950 ){
-//	 			  start =0;
-//	 			  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, 0);
-//	 		  }
-//
-//	 		  if ( receiver_input_channel_5 > 1500 ) turning_speed = 7;
-//	 		  else turning_speed = 5;
-//
-
-//	 		  pid_roll_setpoint =0;
-//	 		  if ( receiver_input_channel_2 > 1508 ) pid_roll_setpoint = (receiver_input_channel_2 - 1508);
-//	 		  else if ( receiver_input_channel_2  < 1492 ) pid_roll_setpoint = ( receiver_input_channel_2  - 1492 );
-//
-//	 		  //pid_roll_setpoint -= roll_level_adjust;
-//	 		  pid_roll_setpoint /= turning_speed;
-//
-//	 		  pid_pitch_setpoint =0;
-//	 		  if ( receiver_input_channel_3 > 1508 ) pid_pitch_setpoint = ( receiver_input_channel_3 - 1508 );
-//	 		  else if ( receiver_input_channel_3 < 1492 ) pid_pitch_setpoint = ( receiver_input_channel_3 - 1492 );
-//
-//	 		  //pid_pitch_setpoint -= pitch_level_adjust;
-//	 		  pid_pitch_setpoint /= turning_speed;
-//
-//
-//	 		  pid_yaw_setpoint =0;
-//	 		  if ( receiver_input_channel_1 > 1050 ){
-//	 			  if ( receiver_input_channel_4 > 1508 ) pid_yaw_setpoint = ( receiver_input_channel_4 - 1508 ) / turning_speed;
-//	 			  else if ( receiver_input_channel_4 < 1492 ) pid_yaw_setpoint = ( receiver_input_channel_4 - 1492 ) / turning_speed;
-//	 		  }
-
-	 		//  calculate_pid();
-	 		  //roll calculation
-	 		     // q_Roll_angle = AngleRoll + 2000;
-
-//	 		      sprintf((char *)f_trans, "%d%d", (uint16_t)(2100+KalmanAngleRoll), (uint16_t)q_Roll_angle);
-//	 		      SendFrameData(f_trans, FRAME_DATA_TX, f_dest_trans, &f_dest_len_t);
-//	 		      HAL_UART_Transmit(&huart1, f_dest_trans, f_dest_len_t, 1000);
 
 
 	 		  throttle = receiver_input_channel_1;
@@ -733,14 +743,14 @@ int main(void)
 	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_3,esc3);
 	 		  __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_4,esc4);
 
-	 		  if (abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) > 6000 ){
+	 		  if (abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) > 4000 ){
 	 			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);
 	 		  }
 
 	 	//	  cuoi = HAL_GetTick() - dau;
 	 		// uint32_t cuoi = HAL_GetTick() - dau;
 	 		 //uint32_t cuoi2 = abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer);
-	 		 while ( abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) < 6000 );
+	 		 while ( abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer) < 4000 );
 	 		 //cuoi2 = abs(__HAL_TIM_GET_COUNTER(&htim2) - loop_timer);
 	 		 __HAL_TIM_SET_COUNTER(&htim2,0);
 	 		 loop_timer = __HAL_TIM_GET_COUNTER(&htim2);

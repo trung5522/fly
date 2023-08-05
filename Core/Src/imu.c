@@ -598,12 +598,12 @@ void MPU9250_Init(MPU9250_t *MPU9250){
 	  writeByte(MPU9250_ADDRESS, CONFIG, 0x03);
 
 	 // Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
-	  writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x04);  // Use a 200 Hz rate; the same rate set in CONFIG above
+	  writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x03);  // Use a 200 Hz rate; the same rate set in CONFIG above
 
 	 // Set gyroscope full scale range
 	 // Range selects FS_SEL and AFS_SEL are 0 - 3, so 2-bit values are left-shifted into positions 4:3
 	  uint8_t c =  readByte(MPU9250_ADDRESS, GYRO_CONFIG);
-	 // c = c & ~0xE0;                                     // Clear self-test bits [7:5]
+	  c = c & ~0xE0;                                     // Clear self-test bits [7:5]
 	  c = c & ~0x03;                                     // Clear Fchoice bits [1:0]
 	  c = c & ~0x18;                                     // Clear GYRO_FS_SEL bits [4:3]
 	  c = c | (Gscale << 3);       // Set full scale range for the gyro
@@ -612,7 +612,7 @@ void MPU9250_Init(MPU9250_t *MPU9250){
 
 	 // Set accelerometer configuration
 	  c =  readByte(MPU9250_ADDRESS, ACCEL_CONFIG);
-	  //c = c & ~0xE0;                                 // Clear self-test bits [7:5]
+	  c = c & ~0xE0;                                 // Clear self-test bits [7:5]
 	  c = c & ~0x18;                                 // Clear ACCEL_FS_SEL bits [4:3]
 	  c = c | (Ascale << 3);  // Set full scale range for the accelerometer
 	  writeByte(MPU9250_ADDRESS, ACCEL_CONFIG, c); // Set full scale range for the accelerometer
@@ -622,10 +622,10 @@ void MPU9250_Init(MPU9250_t *MPU9250){
 	 // accel_fchoice_b bit [3]; in this case the bandwidth is 1.13 kHz
 	  c = readByte(MPU9250_ADDRESS, ACCEL_CONFIG2);
 	  c = c & ~0x0F;                                     // Clear accel_fchoice_b (bit 3) and A_DLPFG (bits [2:0])
-	  c = c | 0x03;
+	//  c = c | 0x03;
 
-//	  c = c | (~(0x01 << 3) & 0x08);    // Set accel_fchoice_b to 1
-//	  c = c | (0x03 & 0x07);  // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz
+	  c = c | (~(0x01 << 3) & 0x08);    // Set accel_fchoice_b to 1
+	  c = c | (0x03 & 0x07);  // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz
 
 	  writeByte(MPU9250_ADDRESS, ACCEL_CONFIG2, c); // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz
 
@@ -708,7 +708,8 @@ char readByte(uint8_t I2C_ADDRESS, uint8_t RegAddr){
 
 	HAL_I2C_Master_Transmit(&hi2c1, I2C_ADDRESS, data_write, 1, 100);
 	HAL_I2C_Master_Receive(&hi2c1, (uint16_t)I2C_ADDRESS, data, (uint16_t)1, (uint16_t)100);
-
+	//HAL_I2C_Master_Transmit_DMA(&hi2c1, I2C_ADDRESS, data_write, 1);
+	//HAL_I2C_Master_Receive_DMA(&hi2c1, (uint16_t)I2C_ADDRESS, data, (uint16_t)1);
 	return data[0];
 
 }
@@ -720,7 +721,9 @@ void readBytes(uint8_t I2C_ADDRESS, uint8_t RegAddr, uint8_t count, uint8_t * de
 	//Откуда будем считывать данные
 
 	HAL_I2C_Master_Transmit(&hi2c1, I2C_ADDRESS, data_write, 1, 100);
+	//HAL_I2C_Master_Transmit_DMA(&hi2c1, I2C_ADDRESS, data_write, 1);
 	HAL_I2C_Master_Receive(&hi2c1, (uint16_t)(I2C_ADDRESS), data, count, (uint16_t)100);
+	//HAL_I2C_Master_Receive_DMA(&hi2c1, (uint16_t)(I2C_ADDRESS), data, count);
 	for(int ii = 0; ii < count; ii++) {
 			dest[ii] = data[ii];
 		}
@@ -733,6 +736,7 @@ void writeByte(uint8_t I2C_ADDRESS, uint8_t RegAddr, uint8_t data){
 	data_write[1] = data;
 
 	HAL_I2C_Master_Transmit(&hi2c1, I2C_ADDRESS, data_write, 2, 100);
+	//HAL_I2C_Master_Receive_DMA(&hi2c1, I2C_ADDRESS, data_write, 2);
 }
 
 void MPU9250SetDefault(MPU9250_t *MPU9250){

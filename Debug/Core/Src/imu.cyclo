@@ -74,10 +74,10 @@ imu.c:643:6:getMres	3
 imu.c:658:6:getGres	5
 imu.c:680:6:getAres	5
 imu.c:702:6:readByte	1
-imu.c:715:6:readBytes	2
-imu.c:730:6:writeByte	1
-imu.c:738:6:MPU9250SetDefault	1
-imu.c:800:6:update_madgwick	1
-imu.c:809:6:madgwick	3
-imu.c:912:6:MPU9250SelfTest	7
-imu.c:1022:6:calibrateMPU9250	14
+imu.c:716:6:readBytes	2
+imu.c:733:6:writeByte	1
+imu.c:742:6:MPU9250SetDefault	1
+imu.c:804:6:update_madgwick	1
+imu.c:813:6:madgwick	3
+imu.c:916:6:MPU9250SelfTest	7
+imu.c:1026:6:calibrateMPU9250	14
